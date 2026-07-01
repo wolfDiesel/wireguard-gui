@@ -1,0 +1,307 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WireguardGui.App.Avalonia.Controls">
+
+  <Styles.Resources>
+    <ControlTheme x:Key="{x:Type controls:AppButton}" TargetType="controls:AppButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="14,8" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="PART_Root"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  ClipToBounds="False">
+            <Grid ClipToBounds="False">
+              <Panel x:Name="PART_RippleHost"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch"
+                     IsHitTestVisible="False"
+                     ClipToBounds="False">
+                <Border x:Name="PART_Wave0"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Background="Transparent"
+                        BorderThickness="1.75"
+                        Margin="0"
+                        Opacity="0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        IsHitTestVisible="False" />
+                <Border x:Name="PART_Wave1"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Background="Transparent"
+                        BorderThickness="1.75"
+                        Margin="0"
+                        Opacity="0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        IsHitTestVisible="False" />
+                <Border x:Name="PART_Wave2"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Background="Transparent"
+                        BorderThickness="1.75"
+                        Margin="0"
+                        Opacity="0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        IsHitTestVisible="False" />
+              </Panel>
+              <Border x:Name="PART_Face"
+                      ClipToBounds="True"
+                      CornerRadius="{TemplateBinding CornerRadius}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      Padding="{TemplateBinding Padding}"
+                      RenderTransformOrigin="0.5,0.5">
+                <Border.RenderTransform>
+                  <ScaleTransform ScaleX="1" ScaleY="1" />
+                </Border.RenderTransform>
+                <Border.Transitions>
+                  <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.04">
+                      <TransformOperationsTransition.Easing>
+                        <CubicEaseOut />
+                      </TransformOperationsTransition.Easing>
+                    </TransformOperationsTransition>
+                    <BrushTransition Property="Background" Duration="0:0:0.18">
+                      <BrushTransition.Easing>
+                        <CubicEaseOut />
+                      </BrushTransition.Easing>
+                    </BrushTransition>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.18">
+                      <BrushTransition.Easing>
+                        <CubicEaseOut />
+                      </BrushTransition.Easing>
+                    </BrushTransition>
+                  </Transitions>
+                </Border.Transitions>
+                <Grid>
+                  <ContentPresenter x:Name="PART_ContentPresenter"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    RecognizesAccessKey="True" />
+                  <Border x:Name="PART_Shine"
+                          Height="18"
+                          VerticalAlignment="Top"
+                          Opacity="0"
+                          IsHitTestVisible="False"
+                          CornerRadius="8,8,0,0">
+                    <Border.Background>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#55FFFFFF" Offset="0" />
+                        <GradientStop Color="#00FFFFFF" Offset="1" />
+                      </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.Transitions>
+                      <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.22" />
+                      </Transitions>
+                    </Border.Transitions>
+                  </Border>
+                </Grid>
+              </Border>
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <Style Selector="controls|AppButton">
+    <Setter Property="Theme" Value="{StaticResource {x:Type controls:AppButton}}" />
+    <Setter Property="ClipToBounds" Value="False" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary">
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="Padding" Value="14,8" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="BoxShadow" Value="0 2 10 0 #33000000" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary:pointerover /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource AccentPrimaryHoverBrush}" />
+    <Setter Property="BoxShadow" Value="0 6 22 0 #55F07818" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary:pointerover /template/ Border#PART_Shine">
+    <Setter Property="Opacity" Value="0.35" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary:pressed /template/ Border#PART_Face">
+    <Setter Property="BoxShadow" Value="0 1 6 0 #44000000" />
+    <Setter Property="RenderTransform" Value="scale(0.996)" />
+  </Style>
+
+  <Style Selector="controls|AppButton.primary:disabled /template/ Border#PART_Face">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost">
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BoxShadow" Value="0 0 0 0 #00000000" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost:pointerover /template/ Border#PART_Face">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="BoxShadow" Value="0 4 14 0 #33F07818" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost:pressed /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    <Setter Property="RenderTransform" Value="scale(0.996)" />
+  </Style>
+
+  <Style Selector="controls|AppButton.ghost:disabled /template/ Border#PART_Face">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav">
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Margin" Value="0,2" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundMutedBrush}" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav:pointerover /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav.active /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+    <Setter Property="BorderThickness" Value="3,1,1,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav.active">
+    <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="controls|AppButton.nav:pressed /template/ Border#PART_Face">
+    <Setter Property="RenderTransform" Value="scale(0.996)" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip">
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip:pointerover /template/ Border#PART_Face">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip.selected /template/ Border#PART_Face">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip.selected">
+    <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="controls|AppButton.option-chip:pressed /template/ Border#PART_Face">
+    <Setter Property="RenderTransform" Value="scale(0.996)" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip">
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip /template/ Border#PART_Face">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip:pointerover /template/ Border#PART_Face">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip.selected /template/ Border#PART_Face">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip.selected">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="controls|AppButton.palette-chip:pressed /template/ Border#PART_Face">
+    <Setter Property="RenderTransform" Value="scale(0.996)" />
+  </Style>
+
+  <Style Selector="controls|AppButton.toast-close">
+    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Padding" Value="4,0" />
+    <Setter Property="MinWidth" Value="24" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundMutedBrush}" />
+    <Setter Property="FontSize" Value="16" />
+  </Style>
+
+  <Style Selector="controls|AppButton.toast-close /template/ Border#PART_Face">
+    <Setter Property="Background" Value="#111111" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <Style Selector="controls|AppButton.toast-close:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="controls|AppButton.toast-close:pressed /template/ Border#PART_Face">
+    <Setter Property="RenderTransform" Value="scale(0.96)" />
+  </Style>
+
+</Styles>

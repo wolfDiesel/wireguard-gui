@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WireguardGui.App.Avalonia/WireguardGui.App.Avalonia.csproj" />
+    <Project Path="src/WireguardGui.Application/WireguardGui.Application.csproj" />
+    <Project Path="src/WireguardGui.Desktop/WireguardGui.Desktop.csproj" />
+    <Project Path="src/WireguardGui.Domain/WireguardGui.Domain.csproj" />
+    <Project Path="src/WireguardGui.Infrastructure/WireguardGui.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WireguardGui.App.Tests/WireguardGui.App.Tests.csproj" />
+    <Project Path="tests/WireguardGui.Application.Tests/WireguardGui.Application.Tests.csproj" />
+    <Project Path="tests/WireguardGui.Infrastructure.Tests/WireguardGui.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

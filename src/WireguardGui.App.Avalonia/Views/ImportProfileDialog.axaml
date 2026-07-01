@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WireguardGui.App.Avalonia.Controls"
+        x:Class="WireguardGui.App.Avalonia.Views.ImportProfileDialog"
+        Width="480"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource SurfaceCanvasBrush}"
+        Padding="20">
+  <StackPanel Spacing="16">
+    <TextBlock x:Name="DialogTitle" Classes="page-title" />
+    <TextBlock Classes="text-muted" TextWrapping="Wrap" IsVisible="False" />
+
+    <StackPanel x:Name="NativePanel" Spacing="4">
+      <RadioButton x:Name="NativeRadio" GroupName="backend" />
+      <TextBlock x:Name="NativeWarning" Classes="text-muted" Foreground="{DynamicResource DangerBrush}" IsVisible="False" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel x:Name="NmcliPanel" Spacing="4">
+      <RadioButton x:Name="NmcliRadio" GroupName="backend" />
+      <TextBlock x:Name="NmcliWarning" Classes="text-muted" Foreground="{DynamicResource DangerBrush}" IsVisible="False" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <controls:AppButton x:Name="CancelButton" Variant="Ghost" Click="OnCancelClick" />
+      <controls:AppButton x:Name="ImportButton" Variant="Primary" Click="OnImportClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

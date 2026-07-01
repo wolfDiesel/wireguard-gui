@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=WireGuard GUI
+Comment=WireGuard VPN manager for Linux
+Exec=WireguardGui.App
+Icon=wireguard-gui
+Categories=Network;
+StartupWMClass=WireGuard GUI

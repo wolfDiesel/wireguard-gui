@@ -1,0 +1,44 @@
+name: Release AppImage
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install packaging dependencies
+        run: ./packaging/appimage/install-deps-ubuntu.sh
+
+      - name: Build AppImage
+        env:
+          RAW_VERSION: ${{ github.event.release.tag_name || format('0.0.0-ci.{0}', github.run_number) }}
+        run: |
+          APPIMAGE_VERSION="${RAW_VERSION#v}"
+          export APPIMAGE_VERSION
+          export OUTPUT_NAME="WireguardGui-${APPIMAGE_VERSION}-x86_64.AppImage"
+          ./packaging/appimage/build-appimage.sh
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WireguardGui-x86_64.AppImage
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+      - name: Attach AppImage to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.AppImage

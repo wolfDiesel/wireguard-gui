@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireguardGui.App.Avalonia.ViewModels"
+             xmlns:controls="using:WireguardGui.App.Avalonia.Controls"
+             xmlns:conv="using:WireguardGui.App.Avalonia.Converters"
+             x:Class="WireguardGui.App.Avalonia.Views.ProfilesView"
+             x:DataType="vm:ProfilesViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,16"
+                IsVisible="{Binding SetupRequired}">
+      <TextBlock Classes="section-title" Text="{Binding SetupTitle}" />
+      <Border Classes="settings-panel" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="text-muted" Text="{Binding SetupBody}" TextWrapping="Wrap" />
+          <TextBlock Classes="field-label" Text="{Binding SetupNativeFedora}" />
+          <TextBlock Text="{Binding NativeInstallFedora}" Classes="accent-text" />
+          <TextBlock Classes="field-label" Text="{Binding SetupNativeDebian}" />
+          <TextBlock Text="{Binding NativeInstallDebian}" Classes="accent-text" />
+          <TextBlock Classes="field-label" Text="{Binding SetupNmcliFedora}" />
+          <TextBlock Text="{Binding NmcliInstallFedora}" Classes="accent-text" />
+          <TextBlock Classes="field-label" Text="{Binding SetupNmcliDebian}" />
+          <TextBlock Text="{Binding NmcliInstallDebian}" Classes="accent-text" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="260,*" ColumnSpacing="16">
+      <DockPanel Grid.Column="0" LastChildFill="True">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+          <TextBlock Classes="page-title" Text="{Binding ProfilesTitle}" VerticalAlignment="Center" />
+          <controls:AppButton Variant="Primary" Content="{Binding ImportLabel}" Click="OnImportClick" />
+        </StackPanel>
+
+        <ListBox ItemsSource="{Binding Profiles}"
+                 SelectedItem="{Binding SelectedProfile}"
+                 MinHeight="200">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ProfileRowViewModel">
+              <Border Classes="island-inner" Padding="10,8" Margin="0,2">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Center"
+                           Fill="{Binding IsConnected, Converter={x:Static conv:ConnectionBrushConverter.Instance}}" />
+                  <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="text-muted" FontSize="12" Text="{Binding BackendLabel}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Classes="text-muted" FontSize="12"
+                             VerticalAlignment="Center" Text="{Binding StateLabel}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <ScrollViewer Grid.Column="1">
+        <StackPanel Spacing="16"
+                    IsVisible="{Binding SelectedProfile, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="page-title" Text="{Binding SelectedProfile.Name}" />
+            <TextBlock Classes="text-muted" Text="{Binding SelectedProfile.ConnectionLabel}" />
+          </StackPanel>
+
+          <Border Classes="settings-panel" Padding="16">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="section-title" Text="{Binding ConnectionLabel}" />
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label" Text="{Binding BackendLabel}" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedProfile.BackendLabel}" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="{Binding StatusLabel}" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                           Fill="{Binding SelectedProfile.IsConnected, Converter={x:Static conv:ConnectionBrushConverter.Instance}}" />
+                  <TextBlock Text="{Binding SelectedProfile.StateLabel}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="{Binding SplitRoutingLabel}" />
+                <TextBlock Grid.Row="2" Grid.Column="1"
+                           Text="{Binding SelectedProfile.SplitRoutingEnabled, Converter={x:Static conv:BoolToOnOffConverter.Instance}}" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <controls:AppButton Variant="Primary" Content="{Binding ConnectLabel}"
+                        Command="{Binding ConnectSelectedCommand}"
+                        IsEnabled="{Binding CanConnectSelected}" />
+                <controls:AppButton Variant="Ghost" Content="{Binding DisconnectLabel}"
+                        Command="{Binding DisconnectSelectedCommand}"
+                        IsEnabled="{Binding CanDisconnectSelected}" />
+                <controls:AppButton Variant="Ghost" Content="{Binding DeleteLabel}"
+                        Command="{Binding DeleteSelectedCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="settings-panel" Padding="16">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="section-title" Text="{Binding SplitRoutingLabel}" />
+              <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintCloudflare}" />
+              <TextBlock Classes="text-muted" TextWrapping="Wrap"
+                         IsVisible="{Binding ShowReconnectHint}"
+                         Text="{Binding SplitHintReconnect}" />
+              <Border Classes="island-inner" Padding="12"
+                      IsVisible="{Binding IsApplyingRoutes}">
+                <StackPanel Spacing="8">
+                  <ProgressBar IsIndeterminate="True" Height="4" />
+                  <TextBlock Text="{Binding ApplyRoutesStatus}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+              <CheckBox Content="{Binding SplitEnableLabel}" IsChecked="{Binding SplitRoutingEnabled}" />
+              <CheckBox Content="{Binding SplitYoutubeLabel}" IsChecked="{Binding SplitYoutube}"
+                        IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <CheckBox Content="{Binding SplitTelegramLabel}" IsChecked="{Binding SplitTelegram}"
+                        IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <CheckBox Content="{Binding SplitCloudflareLabel}" IsChecked="{Binding SplitCloudflare}"
+                        IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <TextBlock Classes="field-label" Text="{Binding SplitDomainsLabel}" />
+              <TextBox AcceptsReturn="True" MinHeight="80" Text="{Binding CustomDomainsText}"
+                       IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <controls:AppButton Variant="Primary" Content="{Binding SplitApplyLabel}"
+                        Command="{Binding ApplySplitRoutingCommand}"
+                        IsEnabled="{Binding CanApplySplitRouting}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,33 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WireguardGui.App.Avalonia.App"
+             xmlns:local="using:WireguardGui.App.Avalonia"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <SolidColorBrush x:Key="AccentPrimaryBrush" Color="#F07818" />
+    <SolidColorBrush x:Key="AccentPrimaryHoverBrush" Color="#E06810" />
+    <SolidColorBrush x:Key="SurfaceCanvasBrush" Color="#0A0A0A" />
+    <SolidColorBrush x:Key="SurfacePanelBrush" Color="#131313" />
+    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#1A1A1A" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#F4F4F5" />
+    <SolidColorBrush x:Key="ForegroundMutedBrush" Color="#A1A1AA" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#24FFFFFF" />
+    <SolidColorBrush x:Key="BorderMutedBrush" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="RowHoverBrush" Color="#1A1A1A" />
+    <SolidColorBrush x:Key="RowActiveBrush" Color="#141414" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#22C55E" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#EF4444" />
+    <Color x:Key="SystemAccentColor">#F07818</Color>
+    <Color x:Key="SystemAccentColorDark1">#E06810</Color>
+  </Application.Resources>
+
+  <Application.DataTemplates>
+    <local:ViewLocator/>
+  </Application.DataTemplates>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://WireguardGui.App/Themes/AppTheme.axaml"/>
+    <StyleInclude Source="avares://WireguardGui.App/Controls/AppButton.axaml"/>
+  </Application.Styles>
+</Application>

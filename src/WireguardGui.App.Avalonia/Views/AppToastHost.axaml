@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:WireguardGui.App.Avalonia.Converters"
+             xmlns:controls="using:WireguardGui.App.Avalonia.Controls"
+             xmlns:services="using:WireguardGui.App.Avalonia.Services"
+             x:Class="WireguardGui.App.Avalonia.Views.AppToastHost"
+             x:DataType="services:AppToastService"
+             IsHitTestVisible="True">
+  <ItemsControl ItemsSource="{Binding Items}">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate>
+        <StackPanel Spacing="8" />
+      </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+      <DataTemplate x:DataType="services:AppToastItemViewModel">
+        <Border Classes="app-toast"
+                MinWidth="280"
+                MaxWidth="380">
+          <Grid ColumnDefinitions="Auto,*,Auto"
+                ColumnSpacing="10"
+                VerticalAlignment="Center">
+            <TextBlock Grid.Column="0"
+                       Classes="toast-icon"
+                       VerticalAlignment="Center"
+                       Text="{Binding Variant, Converter={x:Static conv:ToastVariantIconConverter.Instance}}" />
+            <StackPanel Grid.Column="1"
+                        Spacing="2"
+                        VerticalAlignment="Center">
+              <TextBlock Text="{Binding Title}" Classes="toast-title" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Description}"
+                         Classes="toast-description"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding HasDescription}" />
+            </StackPanel>
+            <controls:AppButton Grid.Column="2"
+                    Variant="ToastClose"
+                    Content="×"
+                    Command="{Binding CloseCommand}"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+      </DataTemplate>
+    </ItemsControl.ItemTemplate>
+  </ItemsControl>
+</UserControl>

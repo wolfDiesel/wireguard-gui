@@ -1,0 +1,31 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.vs/
+*.DotSettings.user
+project.lock.json
+*.nuget.props
+*.nuget.targets
+
+## Build / packaging
+build/
+dist/
+*.AppImage
+
+## IDE / local
+.cursor/
+.vscode/
+.idea/
+plan/
+
+## OS
+.DS_Store
+Thumbs.db
+*~
+
+## Logs / temp
+*.log
+*.tmp
