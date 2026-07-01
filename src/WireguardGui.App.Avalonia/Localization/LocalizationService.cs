@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using WireguardGui.Domain;
@@ -9,10 +10,19 @@ public sealed class LocalizationService
     private static readonly Assembly Assembly = typeof(LocalizationService).Assembly;
     private readonly Dictionary<string, string> _strings = new(StringComparer.Ordinal);
     private string _language = UiLanguages.Default;
+    private Action<Action>? _uiSynchronizer;
 
     public event EventHandler? Changed;
 
     public string Language => _language;
+
+    public void SetUiSynchronizer(Action<Action> uiSynchronizer) =>
+        _uiSynchronizer = uiSynchronizer;
+
+    public LocalizationService()
+    {
+        LoadStrings(_language);
+    }
 
     public void SetLanguage(string language)
     {
@@ -22,17 +32,44 @@ public sealed class LocalizationService
 
         _language = normalized;
         LoadStrings(_language);
-        Changed?.Invoke(this, EventArgs.Empty);
+        RaiseChanged();
     }
 
     public string Get(string key) =>
         _strings.TryGetValue(key, out var value) ? value : key;
 
-    public string Format(string key, params object[] args) =>
-        string.Format(Get(key), args);
+    public string Format(string key, params object[] args)
+    {
+        var template = Get(key);
+        if (args.Length == 0)
+            return template;
+
+        try
+        {
+            return string.Format(CultureInfo.InvariantCulture, template, args);
+        }
+        catch (FormatException)
+        {
+            return template;
+        }
+    }
 
     public string GetLanguageLabel(string languageCode) =>
         Get($"Lang_{languageCode}");
+
+    private void RaiseChanged()
+    {
+        if (Changed is null)
+            return;
+
+        if (_uiSynchronizer is not null)
+        {
+            _uiSynchronizer(() => Changed?.Invoke(this, EventArgs.Empty));
+            return;
+        }
+
+        Changed.Invoke(this, EventArgs.Empty);
+    }
 
     private void LoadStrings(string language)
     {

@@ -74,8 +74,7 @@
                   <TextBlock Text="{Binding SelectedProfile.StateLabel}" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="{Binding SplitRoutingLabel}" />
-                <TextBlock Grid.Row="2" Grid.Column="1"
-                           Text="{Binding SelectedProfile.SplitRoutingEnabled, Converter={x:Static conv:BoolToOnOffConverter.Instance}}" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedSplitRoutingOnOff}" />
               </Grid>
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <controls:AppButton Variant="Primary" Content="{Binding ConnectLabel}"

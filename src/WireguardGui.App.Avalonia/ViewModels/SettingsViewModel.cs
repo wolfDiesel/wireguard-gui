@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,9 +144,12 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
         await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<SaveSettingsHandler>().HandleAsync(updated));
 
-        Localization.SetLanguage(SelectedLanguage);
-        _desktopSession.UpdateTrayLabels();
-        ApplyPreview();
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Localization.SetLanguage(SelectedLanguage);
+            _desktopSession.UpdateTrayLabels();
+            ApplyPreview();
+        });
     }
 
     private void ApplyPreview() =>

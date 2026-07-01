@@ -27,6 +27,8 @@ internal sealed class GtkTrayMenu : IDisposable
             if (menu == IntPtr.Zero)
                 return null;
 
+            GObjectRefSink.TrySink(menu);
+
             var trayMenu = new GtkTrayMenu(menu);
             trayMenu.AddItem(labels.Show, show);
             if (connect is not null)
@@ -86,6 +88,38 @@ internal sealed class GtkTrayMenu : IDisposable
     [DllImport("libgtk-3.so.0")]
     private static extern void gtk_widget_show_all(IntPtr widget);
 
+}
+
+internal static class GObjectRefSink
+{
+    public static void TrySink(IntPtr instance)
+    {
+        if (instance == IntPtr.Zero)
+            return;
+
+        foreach (var library in new[] { "libgobject-2.0.so.0", "libglib-2.0.so.0" })
+        {
+            if (!NativeLibrary.TryLoad(library, out var handle))
+                continue;
+
+            try
+            {
+                if (!NativeLibrary.TryGetExport(handle, "g_object_ref_sink", out var symbol))
+                    continue;
+
+                var sink = Marshal.GetDelegateForFunctionPointer<RefSinkDelegate>(symbol);
+                sink(instance);
+                return;
+            }
+            finally
+            {
+                NativeLibrary.Free(handle);
+            }
+        }
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr RefSinkDelegate(IntPtr instance);
 }
 
 internal static class GObjectUnref

@@ -10,7 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Localization\*.json" />
+    <EmbeddedResource Include="Localization\*.json">
+      <LogicalName>WireguardGui.App.Localization.%(Filename).json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

@@ -80,6 +80,9 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     public string SplitHintCloudflare => T("Profiles_Split_Hint_Cloudflare");
     public string SplitHintReconnect => T("Profiles_Split_Hint_Reconnect");
     public string SplitSyncingLabel => T("Profiles_Split_Syncing");
+    public string SelectedSplitRoutingOnOff => SelectedProfile is null
+        ? string.Empty
+        : SelectedProfile.SplitRoutingEnabled ? T("On") : T("Off");
     public string SetupTitle => T("Profiles_Setup_Title");
     public string SetupBody => T("Profiles_Setup_Body");
     public string SetupNativeFedora => T("Profiles_Setup_Native_Fedora");
@@ -377,6 +380,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     partial void OnSplitRoutingEnabledChanged(bool value)
     {
         OnPropertyChanged(nameof(SplitRoutingOptionsEnabled));
+        OnPropertyChanged(nameof(SelectedSplitRoutingOnOff));
         OnSplitRoutingSettingsEdited();
     }
 
@@ -392,6 +396,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     {
         OnSelectedProfileActionsChanged();
         OnPropertyChanged(nameof(ShowReconnectHint));
+        OnPropertyChanged(nameof(SelectedSplitRoutingOnOff));
         if (value?.Id == _loadedSplitRoutingProfileId)
             return;
 
@@ -666,6 +671,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             nameof(SplitHintCloudflare),
             nameof(SplitHintReconnect),
             nameof(SplitSyncingLabel),
+            nameof(SelectedSplitRoutingOnOff),
             nameof(SetupTitle),
             nameof(SetupBody),
             nameof(SetupNativeFedora),
@@ -675,6 +681,8 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
         foreach (var profile in Profiles)
             profile.RefreshLocalization();
+
+        OnPropertyChanged(nameof(SelectedSplitRoutingOnOff));
 
         var items = Profiles.Select(p => new ProfileSummaryDto(
             p.Id,

@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.0] - 2026-07-01
+
+### Added
+
+- README in Russian (`README.ru.md`) and Chinese (`README.zh.md`); language links in main README.
+- Localization unit tests (`LocalizationServiceTests`).
+
+### Fixed
+
+- Embedded localization JSON resources not loading at runtime (button labels showed keys like `Profiles_Import`).
+- App crash when switching UI language with system tray enabled (GTK menu lifecycle / `g_object_ref_sink`).
+- Language change handlers marshalled to the UI thread; safe `string.Format` for localized progress messages.
+- Russian tray and backend strings (removed mixed English).
+
 ## [0.1.0] - 2026-07-01
 
 ### Added

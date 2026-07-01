@@ -25,6 +25,9 @@ internal static class ServiceRegistration
         return services;
     }
 
-    public static void WireLocalization(LocalizationService localization) =>
+    public static void WireLocalization(LocalizationService localization)
+    {
         BoolToOnOffConverter.Instance.Localization = localization;
+        localization.Changed += (_, _) => BoolToOnOffConverter.Instance.Localization = localization;
+    }
 }

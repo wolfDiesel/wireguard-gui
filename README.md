@@ -1,5 +1,7 @@
 # WireGuard GUI
 
+English | [Русский](README.ru.md) | [中文](README.zh.md)
+
 Desktop WireGuard client for **Linux** with an **Avalonia** UI. Manage VPN profiles, connect through **NetworkManager** (`nmcli`) or **native** `wg-quick`, and configure **split routing** by writing routes into `AllowedIPs` in your `.conf` files.
 
 ## Requirements

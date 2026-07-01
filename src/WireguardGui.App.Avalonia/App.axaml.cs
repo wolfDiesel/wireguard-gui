@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.App.Avalonia.Services;
 using WireguardGui.App.Avalonia.ViewModels;
@@ -26,6 +27,13 @@ public partial class App : global::Avalonia.Application
         }
 
         var localization = AppServices.GetRequired<LocalizationService>();
+        localization.SetUiSynchronizer(action =>
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                action();
+            else
+                Dispatcher.UIThread.Invoke(action);
+        });
         ServiceRegistration.WireLocalization(localization);
 
         var mainVm = AppServices.GetRequired<MainWindowViewModel>();

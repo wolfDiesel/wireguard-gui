@@ -112,18 +112,22 @@ internal sealed class AyatanaAppIndicatorTrayHost : ILinuxTrayHost
     public void UpdateMenuLabels(TrayMenuLabels labels)
     {
         _labels = labels;
-        if (_menu is null)
+        if (_menu is null || _indicator == IntPtr.Zero)
             return;
 
-        _menu.Dispose();
-        _menu = GtkTrayMenu.TryCreate(
+        var replacement = GtkTrayMenu.TryCreate(
             _labels,
             () => ShowRequested?.Invoke(),
             () => QuitRequested?.Invoke(),
             () => ConnectRequested?.Invoke(),
             () => DisconnectRequested?.Invoke());
-        if (_menu is not null && _indicator != IntPtr.Zero)
-            s_appIndicatorSetMenu!(_indicator, _menu.Handle);
+        if (replacement is null)
+            return;
+
+        s_appIndicatorSetMenu!(_indicator, replacement.Handle);
+        _menu.Dispose();
+        _menu = replacement;
+        GtkBootstrap.PumpEvents();
     }
 
     public void Dispose()
@@ -138,6 +142,7 @@ internal sealed class AyatanaAppIndicatorTrayHost : ILinuxTrayHost
         {
             try
             {
+                s_appIndicatorSetMenu!(_indicator, IntPtr.Zero);
                 s_appIndicatorSetStatus!(_indicator, StatusPassive);
             }
             catch
