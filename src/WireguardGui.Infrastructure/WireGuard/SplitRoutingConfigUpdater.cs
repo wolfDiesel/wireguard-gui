@@ -19,7 +19,7 @@ public sealed class SplitRoutingConfigUpdater(
         if (!profile.SplitRouting.Enabled)
             return new SplitRoutingConfigUpdateResult(false, 0, null, null);
 
-        logger.LogInformation("Обновление конфига split routing для {Profile}", profile.Name);
+        logger.LogInformation("Updating split routing config for {Profile}", profile.Name);
 
         IReadOnlyList<string> routes;
         try
@@ -29,14 +29,14 @@ public sealed class SplitRoutingConfigUpdater(
         }
         catch (WireGuardOperationException ex)
         {
-            logger.LogWarning("Сканирование маршрутов для {Profile} не удалось: {Message}", profile.Name, ex.UserMessage);
+            logger.LogWarning("Route scan for {Profile} failed: {Message}", profile.Name, ex.UserMessage);
             return new SplitRoutingConfigUpdateResult(false, 0, null, ex.UserMessage);
         }
 
         if (routes.Count == 0)
         {
-            logger.LogWarning("Сканирование маршрутов для {Profile}: маршруты не найдены", profile.Name);
-            return new SplitRoutingConfigUpdateResult(false, 0, null, "Не сгенерировано ни одного маршрута");
+            logger.LogWarning("Route scan for {Profile}: no routes found", profile.Name);
+            return new SplitRoutingConfigUpdateResult(false, 0, null, "No routes were generated");
         }
 
         var configPath = profileStore.GetConfigPath(profile);
@@ -49,7 +49,7 @@ public sealed class SplitRoutingConfigUpdater(
         if (normalizedNew == normalizedOld && !dnsPresent)
         {
             logger.LogInformation(
-                "Конфиг {Profile}: AllowedIPs без изменений ({Count} маршрутов)",
+                "Config {Profile}: AllowedIPs unchanged ({Count} routes)",
                 profile.Name,
                 routes.Count);
             return new SplitRoutingConfigUpdateResult(false, routes.Count, routesCsv, null);
@@ -63,7 +63,7 @@ public sealed class SplitRoutingConfigUpdater(
 
         await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
-            "Конфиг {Profile}: обновлены AllowedIPs ({Count} маршрутов), DNS удалён={DnsRemoved}",
+            "Config {Profile}: updated AllowedIPs ({Count} routes), DNS removed={DnsRemoved}",
             profile.Name,
             routes.Count,
             dnsPresent);

@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0] - 2026-07-01
+
+### Added
+
+- Twitch split routing: per-profile checkbox with curated domain list and DNS resolve to `AllowedIPs`.
+- `ISplitRouteSource` architecture: separate route collectors for YouTube, Telegram, Twitch, Cloudflare, and custom domains.
+- `TwitchDomainNormalizer` for wildcard domain patterns before DNS lookup.
+- Localization key `Toast_Split_Saved` (7 languages).
+
+### Changed
+
+- `SplitRouteBuilder` orchestrates registered route sources instead of inline logic.
+- All log messages and in-code error strings use English (default project language).
+
 ## [1.0.0] - 2026-07-01
 
 ### Added

@@ -9,5 +9,5 @@ public class WireGuardOperationException(string message, string? details = null)
 
 public sealed class WireGuardConfigValidationException(string message) : Exception(message);
 
-public sealed class PrivilegeRequiredException(string message = "Нужны права администратора")
+public sealed class PrivilegeRequiredException(string message = "Administrator privileges required")
     : WireGuardOperationException(message);

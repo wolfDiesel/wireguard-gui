@@ -19,12 +19,12 @@ public sealed class ApplySplitRoutingHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new SplitRoutingResultDto(false, 0, null, "Профиль не найден");
+            return new SplitRoutingResultDto(false, 0, null, "Profile not found");
 
         if (!profile.SplitRouting.Enabled)
-            return new SplitRoutingResultDto(false, 0, null, "Split routing отключён");
+            return new SplitRoutingResultDto(false, 0, null, "Split routing is disabled");
 
-        logger.LogInformation("Применение split routing для {Profile}", profile.Name);
+        logger.LogInformation("Applying split routing for {Profile}", profile.Name);
 
         var backend = backendFactory.GetBackend(profile.Backend);
         var wasConnected = await backend.GetConnectionStateAsync(profile, cancellationToken) == ConnectionState.Connected;
@@ -41,7 +41,7 @@ public sealed class ApplySplitRoutingHandler(
         if (!configUpdate.Changed)
         {
             logger.LogInformation(
-                "Split routing {Profile}: конфиг не изменился ({Count} маршрутов)",
+                "Split routing {Profile}: config unchanged ({Count} routes)",
                 profile.Name,
                 configUpdate.RouteCount);
             progress?.Report("Progress_Routes_Unchanged");
@@ -55,7 +55,7 @@ public sealed class ApplySplitRoutingHandler(
         }
 
         progress?.Report("Progress_Reconnect_Nm");
-        logger.LogInformation("Split routing {Profile}: переподключение после обновления маршрутов", profile.Name);
+        logger.LogInformation("Split routing {Profile}: reconnecting after route update", profile.Name);
 
         try
         {

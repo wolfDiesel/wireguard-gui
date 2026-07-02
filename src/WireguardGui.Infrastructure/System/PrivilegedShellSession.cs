@@ -53,7 +53,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Привилегированная сессия сброшена");
+            logger.LogWarning(ex, "Privileged session reset");
             await ResetAsync().ConfigureAwait(false);
             throw;
         }
@@ -81,9 +81,9 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         File.SetUnixFileMode(helperPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         if (!IsCommandAvailable("pkexec"))
-            throw new PrivilegeRequiredException("pkexec не найден — нужны права администратора");
+            throw new PrivilegeRequiredException("pkexec not found — administrator privileges required");
 
-        logger.LogInformation("Запуск привилегированной сессии (один запрос пароля на время работы приложения)");
+        logger.LogInformation("Starting privileged session (single password prompt for app lifetime)");
 
         var psi = new ProcessStartInfo
         {
@@ -103,7 +103,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            throw new WireGuardOperationException("Не удалось запустить привилегированную сессию", ex.Message);
+            throw new WireGuardOperationException("Failed to start privileged session", ex.Message);
         }
 
         _stdin = _process.StandardInput;
@@ -119,19 +119,19 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             await _stdin.FlushAsync(timeoutCts.Token).ConfigureAwait(false);
             var ping = await ReadResponseAsync(timeoutCts.Token).ConfigureAwait(false);
             if (!ping.IsSuccess)
-                throw new WireGuardOperationException("Привилегированная сессия не отвечает", ping.StandardError.Trim());
+                throw new WireGuardOperationException("Privileged session is not responding", ping.StandardError.Trim());
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             await ResetAsync().ConfigureAwait(false);
-            throw new WireGuardOperationException("Таймаут ожидания авторизации pkexec", null);
+            throw new WireGuardOperationException("Timed out waiting for pkexec authorization", null);
         }
 
         if (_process.HasExited)
         {
             var err = await _process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             throw new WireGuardOperationException(
-                "Не удалось открыть привилегированную сессию",
+                "Failed to open privileged session",
                 err.Trim());
         }
     }
@@ -139,7 +139,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
     private async Task<ProcessResult> ReadResponseAsync(CancellationToken cancellationToken)
     {
         if (_stdout is null || _process is null)
-            throw new InvalidOperationException("Привилегированная сессия не запущена");
+            throw new InvalidOperationException("Privileged session is not running");
 
         var stdout = new StringBuilder();
         var stderr = new StringBuilder();
@@ -152,7 +152,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             {
                 if (_process.HasExited)
                     break;
-                throw new WireGuardOperationException("Привилегированная сессия оборвалась", null);
+                throw new WireGuardOperationException("Privileged session terminated unexpectedly", null);
             }
 
             if (line.StartsWith("__WG_GUI_EXIT__", StringComparison.Ordinal))
@@ -190,7 +190,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             }
         }
 
-        throw new WireGuardOperationException("Привилегированная сессия завершилась без ответа", null);
+        throw new WireGuardOperationException("Privileged session ended without a response", null);
     }
 
     private async Task ResetAsync()

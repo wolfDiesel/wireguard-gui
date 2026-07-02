@@ -22,7 +22,7 @@ public sealed class NativeWireGuardBackend(
             cancellationToken);
 
         if (!result.IsSuccess)
-            throw new WireGuardOperationException("Не удалось подключить туннель", result.StandardError.Trim());
+            throw new WireGuardOperationException("Failed to bring up tunnel", result.StandardError.Trim());
     }
 
     public async Task DisconnectAsync(VpnProfile profile, CancellationToken cancellationToken = default)
@@ -34,7 +34,7 @@ public sealed class NativeWireGuardBackend(
             cancellationToken);
 
         if (!result.IsSuccess && !result.StandardError.Contains("is not a WireGuard interface", StringComparison.OrdinalIgnoreCase))
-            throw new WireGuardOperationException("Не удалось отключить туннель", result.StandardError.Trim());
+            throw new WireGuardOperationException("Failed to bring down tunnel", result.StandardError.Trim());
     }
 
     public async Task<ConnectionState> GetConnectionStateAsync(

@@ -20,10 +20,10 @@ public sealed class ImportProfileHandler(
         var capabilities = await capabilityProbe.ProbeAllAsync(cancellationToken);
         var backendCap = capabilities.FirstOrDefault(c => c.Backend == request.Backend);
         if (backendCap is null || !backendCap.IsAvailable)
-            return new ImportProfileResultDto(false, null, $"Способ {request.Backend} недоступен");
+            return new ImportProfileResultDto(false, null, $"{request.Backend} backend is unavailable");
 
         if (!File.Exists(request.SourceConfigPath))
-            return new ImportProfileResultDto(false, null, "Файл конфигурации не найден");
+            return new ImportProfileResultDto(false, null, "Configuration file not found");
 
         string configContent;
         try
@@ -57,7 +57,7 @@ public sealed class ImportProfileHandler(
 
         await profileStore.SaveProfileAsync(profile, cancellationToken);
         logger.LogInformation(
-            "Импортирован профиль {Name} ({Backend}), соединение {Connection}",
+            "Imported profile {Name} ({Backend}), connection {Connection}",
             profile.Name,
             profile.Backend,
             profile.ConnectionName);

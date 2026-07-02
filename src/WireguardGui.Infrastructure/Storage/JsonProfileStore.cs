@@ -173,6 +173,7 @@ public sealed class JsonProfileStore : IProfileStore
         public bool Enabled { get; set; }
         public bool Youtube { get; set; } = true;
         public bool Telegram { get; set; } = true;
+        public bool Twitch { get; set; }
         public List<string>? CustomDomains { get; set; }
         public bool IncludeCloudflare { get; set; } = true;
         public int MaxRoutes { get; set; } = 200;
@@ -182,6 +183,7 @@ public sealed class JsonProfileStore : IProfileStore
                 Enabled,
                 Youtube,
                 Telegram,
+                Twitch,
                 CustomDomains ?? [],
                 IncludeCloudflare,
                 MaxRoutes);
@@ -192,6 +194,7 @@ public sealed class JsonProfileStore : IProfileStore
                 Enabled = settings.Enabled,
                 Youtube = settings.Youtube,
                 Telegram = settings.Telegram,
+                Twitch = settings.Twitch,
                 CustomDomains = settings.CustomDomains.ToList(),
                 IncludeCloudflare = settings.IncludeCloudflare,
                 MaxRoutes = settings.MaxRoutes,

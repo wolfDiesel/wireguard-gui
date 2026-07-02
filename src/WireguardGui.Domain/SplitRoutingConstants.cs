@@ -22,4 +22,22 @@ public static class SplitRoutingConstants
         "104.16.0.0/12",
         "172.64.0.0/13",
     ];
+
+    public static readonly IReadOnlyList<string> TwitchDomains =
+    [
+        "twitch.tv",
+        "www.twitch.tv",
+        "ttvnw.net",
+        "jtvnw.net",
+        "twitchcdn.net",
+        "live-video.net",
+        "ext-twitch.tv",
+        "passport.twitch.tv",
+        "gql.twitch.tv",
+        "id.twitch.tv",
+        "usher.ttvnw.net",
+        "vod-secure.twitch.tv",
+        "d1m7jfoe9zdc1j.cloudfront.net",
+        "abs.hls.ttvnw.net",
+    ];
 }

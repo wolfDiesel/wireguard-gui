@@ -10,19 +10,19 @@ public sealed partial class WireGuardConfigValidator : IWireGuardConfigValidator
     public void Validate(string configContent)
     {
         if (string.IsNullOrWhiteSpace(configContent))
-            throw new WireGuardConfigValidationException("Конфиг пуст");
+            throw new WireGuardConfigValidationException("Config is empty");
 
         if (!configContent.Contains("[Interface]", StringComparison.Ordinal))
-            throw new WireGuardConfigValidationException("Отсутствует секция [Interface]");
+            throw new WireGuardConfigValidationException("Missing [Interface] section");
 
         if (!configContent.Contains("[Peer]", StringComparison.Ordinal))
-            throw new WireGuardConfigValidationException("Отсутствует секция [Peer]");
+            throw new WireGuardConfigValidationException("Missing [Peer] section");
 
         if (!PrivateKeyPattern().IsMatch(configContent))
-            throw new WireGuardConfigValidationException("Не найден PrivateKey в [Interface]");
+            throw new WireGuardConfigValidationException("PrivateKey not found in [Interface]");
 
         if (!PublicKeyPattern().IsMatch(configContent))
-            throw new WireGuardConfigValidationException("Не найден PublicKey в [Peer]");
+            throw new WireGuardConfigValidationException("PublicKey not found in [Peer]");
     }
 
     [GeneratedRegex(@"PrivateKey\s*=", RegexOptions.IgnoreCase)]
@@ -56,7 +56,7 @@ public sealed partial class WireGuardConfigParser : IWireGuardConfigParser
 
         var peerIndex = configContent.IndexOf("[Peer]", StringComparison.Ordinal);
         if (peerIndex < 0)
-            throw new WireGuardConfigValidationException("Секция [Peer] не найдена");
+            throw new WireGuardConfigValidationException("[Peer] section not found");
 
         var insertAt = configContent.IndexOf('\n', peerIndex);
         if (insertAt < 0)

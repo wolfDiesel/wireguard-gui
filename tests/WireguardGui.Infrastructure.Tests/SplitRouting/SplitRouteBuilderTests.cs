@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
 using WireguardGui.Infrastructure.SplitRouting;
+using WireguardGui.Infrastructure.SplitRouting.Sources;
 using WireguardGui.Infrastructure.System;
 
 namespace WireguardGui.Infrastructure.Tests.SplitRouting;
@@ -11,12 +12,12 @@ public class SplitRouteBuilderTests
     [Fact]
     public async Task BuildRoutes_IncludesTelegramAndCloudflare()
     {
-        var runner = new FakeProcessRunner();
-        var builder = new SplitRouteBuilder(runner, new HttpClient(), NullLogger<SplitRouteBuilder>.Instance);
+        var builder = CreateBuilder(new FakeProcessRunner());
         var settings = new SplitRoutingSettings(
             Enabled: true,
             Youtube: false,
             Telegram: true,
+            Twitch: false,
             CustomDomains: [],
             IncludeCloudflare: true,
             MaxRoutes: 200);
@@ -37,11 +38,12 @@ public class SplitRouteBuilderTests
                 ["example.com"] = "93.184.216.34\n",
             },
         };
-        var builder = new SplitRouteBuilder(runner, new HttpClient(), NullLogger<SplitRouteBuilder>.Instance);
+        var builder = CreateBuilder(runner);
         var settings = new SplitRoutingSettings(
             Enabled: true,
             Youtube: false,
             Telegram: false,
+            Twitch: false,
             CustomDomains: ["example.com"],
             IncludeCloudflare: false,
             MaxRoutes: 200);
@@ -51,14 +53,62 @@ public class SplitRouteBuilderTests
     }
 
     [Fact]
+    public async Task BuildRoutes_ResolvesTwitchDomains()
+    {
+        var runner = new FakeProcessRunner
+        {
+            DigResponses = new Dictionary<string, string>
+            {
+                ["twitch.tv"] = "151.101.1.11\n",
+            },
+        };
+        var builder = CreateBuilder(runner);
+        var settings = new SplitRoutingSettings(
+            Enabled: true,
+            Youtube: false,
+            Telegram: false,
+            Twitch: true,
+            CustomDomains: [],
+            IncludeCloudflare: false,
+            MaxRoutes: 200);
+
+        var routes = await builder.BuildRoutesAsync(settings);
+        Assert.Contains("151.101.1.11/32", routes);
+    }
+
+    [Fact]
+    public async Task BuildRoutes_TwitchOff_SkipsTwitchDomains()
+    {
+        var runner = new FakeProcessRunner
+        {
+            DigResponses = new Dictionary<string, string>
+            {
+                ["twitch.tv"] = "151.101.1.11\n",
+            },
+        };
+        var builder = CreateBuilder(runner);
+        var settings = new SplitRoutingSettings(
+            Enabled: true,
+            Youtube: false,
+            Telegram: false,
+            Twitch: false,
+            CustomDomains: [],
+            IncludeCloudflare: false,
+            MaxRoutes: 200);
+
+        var routes = await builder.BuildRoutesAsync(settings);
+        Assert.DoesNotContain("151.101.1.11/32", routes);
+    }
+
+    [Fact]
     public async Task BuildRoutes_RespectsMaxRoutes()
     {
-        var runner = new FakeProcessRunner();
-        var builder = new SplitRouteBuilder(runner, new HttpClient(), NullLogger<SplitRouteBuilder>.Instance);
+        var builder = CreateBuilder(new FakeProcessRunner());
         var settings = new SplitRoutingSettings(
             Enabled: true,
             Youtube: false,
             Telegram: true,
+            Twitch: false,
             CustomDomains: [],
             IncludeCloudflare: true,
             MaxRoutes: 3);
@@ -67,7 +117,21 @@ public class SplitRouteBuilderTests
         Assert.Equal(3, routes.Count);
     }
 
-    private sealed class FakeProcessRunner : IProcessRunner
+    private static SplitRouteBuilder CreateBuilder(FakeProcessRunner runner)
+    {
+        var dns = new DomainDnsResolver(runner);
+        ISplitRouteSource[] sources =
+        [
+            new TelegramSplitRouteSource(),
+            new CloudflareSplitRouteSource(),
+            new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
+            new TwitchSplitRouteSource(dns, NullLogger<TwitchSplitRouteSource>.Instance),
+            new YouTubeSplitRouteSource(new HttpClient(), NullLogger<YouTubeSplitRouteSource>.Instance),
+        ];
+        return new SplitRouteBuilder(sources, NullLogger<SplitRouteBuilder>.Instance);
+    }
+
+    internal sealed class FakeProcessRunner : IProcessRunner
     {
         public Dictionary<string, string> DigResponses { get; init; } = new();
 

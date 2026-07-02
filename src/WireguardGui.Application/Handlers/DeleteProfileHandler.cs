@@ -15,24 +15,24 @@ public sealed class DeleteProfileHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Профиль не найден");
+            return new OperationResultDto(false, "Profile not found");
 
         var backend = backendFactory.GetBackend(profile.Backend);
 
         try
         {
-            logger.LogInformation("Удаление профиля {Name} ({Backend})", profile.Name, profile.Backend);
+            logger.LogInformation("Deleting profile {Name} ({Backend})", profile.Name, profile.Backend);
             await backend.DisconnectAsync(profile, cancellationToken);
             await backend.UnregisterAsync(profile, cancellationToken);
         }
         catch (Exceptions.WireGuardOperationException ex)
         {
-            logger.LogWarning(ex, "Ошибка при отключении/удалении {Name} из системы", profile.Name);
+            logger.LogWarning(ex, "Error disconnecting/unregistering {Name} from system", profile.Name);
             return new OperationResultDto(false, ex.UserMessage);
         }
 
         await profileStore.DeleteProfileAsync(profileId, cancellationToken);
-        logger.LogInformation("Профиль {Name} удалён", profile.Name);
+        logger.LogInformation("Profile {Name} deleted", profile.Name);
         return new OperationResultDto(true, null);
     }
 }

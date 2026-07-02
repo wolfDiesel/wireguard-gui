@@ -12,7 +12,7 @@ public class JsonProfileStoreTests
         var store = new JsonProfileStore(root);
         var profile = VpnProfile.Create("test", BackendKind.Native, "test") with
         {
-            SplitRouting = new SplitRoutingSettings(true, true, false, ["a.com"], true, 100),
+            SplitRouting = new SplitRoutingSettings(true, true, false, true, ["a.com"], true, 100),
         };
 
         try
@@ -22,6 +22,7 @@ public class JsonProfileStoreTests
             Assert.NotNull(loaded);
             Assert.Equal("test", loaded.Name);
             Assert.True(loaded.SplitRouting.Enabled);
+            Assert.True(loaded.SplitRouting.Twitch);
             Assert.Equal("a.com", loaded.SplitRouting.CustomDomains[0]);
         }
         finally

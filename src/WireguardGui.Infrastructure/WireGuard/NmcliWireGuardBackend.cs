@@ -31,7 +31,7 @@ public sealed class NmcliWireGuardBackend(
         if (!exists)
         {
             logger.LogInformation(
-                "Импорт и подключение NM: {Connection} ← {Config}",
+                "NM import and connect: {Connection} ← {Config}",
                 profile.ConnectionName,
                 configPath);
             script =
@@ -41,7 +41,7 @@ public sealed class NmcliWireGuardBackend(
         }
         else
         {
-            logger.LogInformation("Подключение NM: {Connection}", profile.ConnectionName);
+            logger.LogInformation("NM connect: {Connection}", profile.ConnectionName);
             script = $"nmcli connection up {name}";
         }
 
@@ -60,14 +60,14 @@ public sealed class NmcliWireGuardBackend(
         if (state == ConnectionState.Connected)
         {
             logger.LogWarning(
-                "nmcli up вернул код {Code}, но соединение {Connection} активно",
+                "nmcli up returned code {Code}, but connection {Connection} is active",
                 result.ExitCode,
                 profile.ConnectionName);
             return;
         }
 
         throw new WireGuardOperationException(
-            "Не удалось подключить соединение",
+            "Failed to connect",
             string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput.Trim() : result.StandardError.Trim());
     }
 
@@ -89,7 +89,7 @@ public sealed class NmcliWireGuardBackend(
         if (result.IsSuccess || NmcliConnectionHelper.IsInactiveError(result))
             return;
 
-        throw new WireGuardOperationException("Не удалось отключить соединение", result.StandardError.Trim());
+        throw new WireGuardOperationException("Failed to disconnect", result.StandardError.Trim());
     }
 
     public async Task<ConnectionState> GetConnectionStateAsync(
@@ -137,17 +137,17 @@ public sealed class NmcliWireGuardBackend(
             script += $"; nmcli connection up {name}";
 
         logger.LogInformation(
-            "Переимпорт NM-соединения {Connection} из {Config}{Connect}",
+            "NM reimport connection {Connection} from {Config}{Connect}",
             profile.ConnectionName,
             configPath,
-            connectAfter ? " с подключением" : string.Empty);
+            connectAfter ? " with connect" : string.Empty);
 
         var result = await processRunner.RunPrivilegedShellAsync(script, cancellationToken)
             .ConfigureAwait(false);
 
         if (!result.IsSuccess)
             throw new WireGuardOperationException(
-                "Не удалось импортировать конфиг в NetworkManager",
+                "Failed to import config into NetworkManager",
                 string.IsNullOrWhiteSpace(result.StandardError)
                     ? result.StandardOutput.Trim()
                     : result.StandardError.Trim());
@@ -163,7 +163,7 @@ public sealed class NmcliWireGuardBackend(
             return;
 
         throw new WireGuardOperationException(
-            "Не удалось подключить соединение после переимпорта",
+            "Failed to connect after reimport",
             string.IsNullOrWhiteSpace(result.StandardError)
                 ? result.StandardOutput.Trim()
                 : result.StandardError.Trim());
@@ -176,7 +176,7 @@ public sealed class NmcliWireGuardBackend(
             return;
 
         var name = NmcliConnectionHelper.ShellQuote(profile.ConnectionName);
-        logger.LogInformation("Удаление NM-соединения {Connection}", profile.ConnectionName);
+        logger.LogInformation("Deleting NM connection {Connection}", profile.ConnectionName);
 
         var result = await processRunner.RunPrivilegedShellAsync(
             $"nmcli connection down {name} 2>/dev/null || true; nmcli connection delete {name}",
@@ -186,7 +186,7 @@ public sealed class NmcliWireGuardBackend(
             return;
 
         throw new WireGuardOperationException(
-            "Не удалось удалить соединение из NetworkManager",
+            "Failed to delete connection from NetworkManager",
             result.StandardError.Trim());
     }
 
@@ -202,7 +202,7 @@ public sealed class NmcliWireGuardBackend(
 
         await File.WriteAllTextAsync(configPath, cleaned, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
-            "Удалён Name= из конфига {Config} — имя NM берётся из файла",
+            "Removed Name= from config {Config} — NM name comes from filename",
             profile.ConfigFileName);
         return configPath;
     }
@@ -219,7 +219,7 @@ public sealed class NmcliWireGuardBackend(
             return;
 
         logger.LogInformation(
-            "NM-имя соединения {Old} → {New} для профиля {Profile}",
+            "NM connection name {Old} → {New} for profile {Profile}",
             profile.ConnectionName,
             importedName,
             profile.Name);

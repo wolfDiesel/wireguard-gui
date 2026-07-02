@@ -43,7 +43,7 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
         if (!processRunner.IsCommandAvailable("nmcli"))
             missing.Add("nmcli");
         else if (!await IsNetworkManagerActiveAsync(cancellationToken).ConfigureAwait(false))
-            missing.Add("NetworkManager (не активен)");
+            missing.Add("NetworkManager (not active)");
 
         return new BackendCapability(
             BackendKind.Nmcli,

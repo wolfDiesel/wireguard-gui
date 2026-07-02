@@ -55,6 +55,9 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     private bool _splitTelegram = true;
 
     [ObservableProperty]
+    private bool _splitTwitch;
+
+    [ObservableProperty]
     private bool _splitCloudflare;
 
     [ObservableProperty]
@@ -74,10 +77,12 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     public string SplitEnableLabel => T("Profiles_Split_Enable");
     public string SplitYoutubeLabel => T("Profiles_Split_Youtube");
     public string SplitTelegramLabel => T("Profiles_Split_Telegram");
+    public string SplitTwitchLabel => T("Profiles_Split_Twitch");
     public string SplitCloudflareLabel => T("Profiles_Split_Cloudflare");
     public string SplitDomainsLabel => T("Profiles_Split_Domains");
     public string SplitApplyLabel => T("Profiles_Split_Apply");
     public string SplitHintCloudflare => T("Profiles_Split_Hint_Cloudflare");
+    public string SplitHintTwitch => T("Profiles_Split_Hint_Twitch");
     public string SplitHintReconnect => T("Profiles_Split_Hint_Reconnect");
     public string SplitSyncingLabel => T("Profiles_Split_Syncing");
     public string SelectedSplitRoutingOnOff => SelectedProfile is null
@@ -388,6 +393,8 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
     partial void OnSplitTelegramChanged(bool value) => OnSplitRoutingSettingsEdited();
 
+    partial void OnSplitTwitchChanged(bool value) => OnSplitRoutingSettingsEdited();
+
     partial void OnSplitCloudflareChanged(bool value) => OnSplitRoutingSettingsEdited();
 
     partial void OnCustomDomainsTextChanged(string value) => OnSplitRoutingSettingsEdited();
@@ -459,6 +466,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             SplitRoutingEnabled = profile.SplitRouting.Enabled;
             SplitYoutube = profile.SplitRouting.Youtube;
             SplitTelegram = profile.SplitRouting.Telegram;
+            SplitTwitch = profile.SplitRouting.Twitch;
             SplitCloudflare = profile.SplitRouting.IncludeCloudflare;
             CustomDomainsText = string.Join('\n', profile.SplitRouting.CustomDomains);
             _savedSplitRouting = profile.SplitRouting;
@@ -483,6 +491,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             SplitRoutingEnabled,
             SplitYoutube,
             SplitTelegram,
+            SplitTwitch,
             domains,
             SplitCloudflare,
             200);
@@ -507,6 +516,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         left.Enabled == right.Enabled
         && left.Youtube == right.Youtube
         && left.Telegram == right.Telegram
+        && left.Twitch == right.Twitch
         && left.IncludeCloudflare == right.IncludeCloudflare
         && left.MaxRoutes == right.MaxRoutes
         && left.CustomDomains.SequenceEqual(right.CustomDomains, StringComparer.OrdinalIgnoreCase);
@@ -531,7 +541,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
         SelectedProfile.SplitRoutingEnabled = SplitRoutingEnabled;
         if (showToast)
-            _toast.ShowSuccess("Настройки split routing сохранены");
+            _toast.ShowSuccess(T("Toast_Split_Saved"));
         return true;
     }
 
@@ -665,10 +675,12 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             nameof(SplitEnableLabel),
             nameof(SplitYoutubeLabel),
             nameof(SplitTelegramLabel),
+            nameof(SplitTwitchLabel),
             nameof(SplitCloudflareLabel),
             nameof(SplitDomainsLabel),
             nameof(SplitApplyLabel),
             nameof(SplitHintCloudflare),
+            nameof(SplitHintTwitch),
             nameof(SplitHintReconnect),
             nameof(SplitSyncingLabel),
             nameof(SelectedSplitRoutingOnOff),

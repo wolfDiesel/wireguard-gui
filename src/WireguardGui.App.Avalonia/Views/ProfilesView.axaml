@@ -93,6 +93,7 @@
             <StackPanel Spacing="10">
               <TextBlock Classes="section-title" Text="{Binding SplitRoutingLabel}" />
               <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintCloudflare}" />
+              <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintTwitch}" />
               <TextBlock Classes="text-muted" TextWrapping="Wrap"
                          IsVisible="{Binding ShowReconnectHint}"
                          Text="{Binding SplitHintReconnect}" />
@@ -107,6 +108,8 @@
               <CheckBox Content="{Binding SplitYoutubeLabel}" IsChecked="{Binding SplitYoutube}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <CheckBox Content="{Binding SplitTelegramLabel}" IsChecked="{Binding SplitTelegram}"
+                        IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <CheckBox Content="{Binding SplitTwitchLabel}" IsChecked="{Binding SplitTwitch}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <CheckBox Content="{Binding SplitCloudflareLabel}" IsChecked="{Binding SplitCloudflare}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />

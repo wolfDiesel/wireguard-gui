@@ -51,7 +51,7 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
             return await RunCoreAsync("bash", ["-c", script], cancellationToken, timeout: null)
                 .ConfigureAwait(false);
 
-        logger.LogInformation("Привилегированная команда: {Script}", script);
+        logger.LogInformation("Privileged command: {Script}", script);
         var session = GetPrivilegedSession();
         return await session.ExecuteAsync(script, cancellationToken).ConfigureAwait(false);
     }
@@ -108,11 +108,11 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Не удалось запустить {FileName}", fileName);
-            throw new WireGuardOperationException("Не удалось запустить команду", ex.Message);
+            logger.LogError(ex, "Failed to start {FileName}", fileName);
+            throw new WireGuardOperationException("Failed to start command", ex.Message);
         }
 
-        logger.LogDebug("Запуск: {FileName} {Arguments}", fileName, FormatArgs(arguments));
+        logger.LogDebug("Starting: {FileName} {Arguments}", fileName, FormatArgs(arguments));
 
         using var timeoutCts = timeout is { } value
             ? new CancellationTokenSource(value)
@@ -138,7 +138,7 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
             {
             }
 
-            return new ProcessResult(-1, string.Empty, "Превышено время ожидания команды");
+            return new ProcessResult(-1, string.Empty, "Command timed out");
         }
 
         var result = new ProcessResult(
@@ -148,13 +148,13 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
 
         if (!result.IsSuccess)
             logger.LogWarning(
-                "Команда завершилась с кодом {ExitCode}: {FileName} {Arguments} — {Error}",
+                "Command exited with code {ExitCode}: {FileName} {Arguments} — {Error}",
                 result.ExitCode,
                 fileName,
                 FormatArgs(arguments),
                 string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError);
         else
-            logger.LogDebug("Команда завершилась успешно: {FileName}", fileName);
+            logger.LogDebug("Command completed successfully: {FileName}", fileName);
 
         return result;
     }

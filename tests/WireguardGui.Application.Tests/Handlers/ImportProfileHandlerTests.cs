@@ -26,7 +26,7 @@ public class ImportProfileHandlerTests
                 new ImportProfileRequestDto(configPath, BackendKind.Nmcli));
 
             Assert.False(result.Success);
-            Assert.Contains("недоступен", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("unavailable", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

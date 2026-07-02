@@ -18,14 +18,14 @@ public sealed class ConnectProfileHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Профиль не найден");
+            return new OperationResultDto(false, "Profile not found");
 
         var backend = backendFactory.GetBackend(profile.Backend);
 
         SplitRoutingConfigUpdateResult? configUpdate = null;
         if (profile.SplitRouting.Enabled)
         {
-            logger.LogInformation("Split routing включён для {Name}, сканирование маршрутов…", profile.Name);
+            logger.LogInformation("Split routing enabled for {Name}, scanning routes…", profile.Name);
             configUpdate = await splitRoutingConfigUpdater.TryUpdateConfigAsync(
                 profile,
                 cancellationToken: cancellationToken);
@@ -35,7 +35,7 @@ public sealed class ConnectProfileHandler(
 
         try
         {
-            logger.LogInformation("Подключение профиля {Name} ({Backend})", profile.Name, profile.Backend);
+            logger.LogInformation("Connecting profile {Name} ({Backend})", profile.Name, profile.Backend);
 
             if (profile.SplitRouting.Enabled)
                 await backend.ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
@@ -45,9 +45,9 @@ public sealed class ConnectProfileHandler(
             profile = await profileStore.GetProfileAsync(profileId, cancellationToken) ?? profile;
             var state = await backend.GetConnectionStateAsync(profile, cancellationToken);
             if (state != ConnectionState.Connected)
-                return new OperationResultDto(false, "Соединение не активно после подключения");
+                return new OperationResultDto(false, "Connection not active after connect");
 
-            logger.LogInformation("Профиль {Name} подключён", profile.Name);
+            logger.LogInformation("Profile {Name} connected", profile.Name);
             return new OperationResultDto(true, null);
         }
         catch (WireGuardOperationException ex)
@@ -57,13 +57,13 @@ public sealed class ConnectProfileHandler(
             if (state == ConnectionState.Connected)
             {
                 logger.LogWarning(
-                    "Подключение {Name}: ошибка «{Message}», но соединение активно",
+                    "Connect {Name}: error \"{Message}\", but connection is active",
                     profile.Name,
                     ex.UserMessage);
                 return new OperationResultDto(true, null);
             }
 
-            logger.LogWarning("Подключение {Name} не удалось: {Message}", profile.Name, ex.UserMessage);
+            logger.LogWarning("Connect {Name} failed: {Message}", profile.Name, ex.UserMessage);
             return new OperationResultDto(false, ex.UserMessage);
         }
     }

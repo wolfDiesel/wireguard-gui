@@ -8,5 +8,5 @@ internal sealed partial class StatusBarService : ObservableObject
     private bool _isConnected;
 
     [ObservableProperty]
-    private string _statusText = "Отключён";
+    private string _statusText = string.Empty;
 }
