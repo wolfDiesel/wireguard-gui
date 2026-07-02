@@ -1,20 +1,21 @@
 using WireguardGui.Application.Abstractions;
+using WireguardGui.Application.Contracts;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting.Sources;
 
 internal sealed class CloudflareSplitRouteSource : ISplitRouteSource
 {
-    public string ProgressKey => "Progress_Routes_Cloudflare";
+    public int Priority => 0;
 
     public bool IsEnabled(SplitRoutingSettings settings) => settings.IncludeCloudflare;
 
     public Task<IReadOnlyList<string>> CollectAsync(
         SplitRoutingSettings settings,
-        IProgress<string>? progress,
+        IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report(ProgressKey);
-        return Task.FromResult<IReadOnlyList<string>>(SplitRoutingConstants.CloudflareRoutes.ToList());
+        progress?.Report(new SplitRoutingProgress("Progress_Routes_Cloudflare"));
+        return Task.FromResult<IReadOnlyList<string>>(SplitRoutingConstants.CloudflareRoutes);
     }
 }

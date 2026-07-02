@@ -7,16 +7,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddWireguardGuiApplication(this IServiceCollection services)
     {
-        services.AddScoped<ImportProfileHandler>();
-        services.AddScoped<ConnectProfileHandler>();
-        services.AddScoped<DisconnectProfileHandler>();
-        services.AddScoped<DeleteProfileHandler>();
-        services.AddScoped<GetProfilesHandler>();
-        services.AddScoped<GetSystemCapabilitiesHandler>();
-        services.AddScoped<ApplySplitRoutingHandler>();
-        services.AddScoped<SaveProfileSplitRoutingHandler>();
-        services.AddScoped<GetSettingsHandler>();
-        services.AddScoped<SaveSettingsHandler>();
+        services.AddSingleton<ImportProfileHandler>();
+        services.AddSingleton<ConnectProfileHandler>();
+        services.AddSingleton<DisconnectProfileHandler>();
+        services.AddSingleton<DeleteProfileHandler>();
+        services.AddSingleton<GetProfilesHandler>();
+        services.AddSingleton<GetSystemCapabilitiesHandler>();
+        services.AddSingleton<ApplySplitRoutingHandler>();
+        services.AddSingleton<SaveProfileSplitRoutingHandler>();
+        services.AddSingleton<GetProfileSplitRoutingHandler>();
+        services.AddSingleton<GetSettingsHandler>();
+        services.AddSingleton<SaveSettingsHandler>();
         return services;
     }
 }

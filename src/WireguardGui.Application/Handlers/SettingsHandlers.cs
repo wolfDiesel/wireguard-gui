@@ -13,11 +13,11 @@ public sealed class SaveProfileSplitRoutingHandler(IProfileStore profileStore)
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Profile not found");
+            return new OperationResultDto(false, OperationErrorCode.ProfileNotFound, "Profile not found");
 
-        var updated = profile with { SplitRouting = settings };
+        var updated = profile with { SplitRouting = settings.Normalize() };
         await profileStore.SaveProfileAsync(updated, cancellationToken);
-        return new OperationResultDto(true, null);
+        return new OperationResultDto(true);
     }
 }
 

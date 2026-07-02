@@ -19,6 +19,7 @@ internal static class ServiceRegistration
         services.AddSingleton<ThemeService>();
         services.AddSingleton<AppToastService>();
         services.AddSingleton<StatusBarService>();
+        services.AddSingleton<SplitRoutingPanelViewModel>();
         services.AddSingleton<ProfilesViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindowViewModel>();

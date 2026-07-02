@@ -1,15 +1,16 @@
+using WireguardGui.Application.Contracts;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Application.Abstractions;
 
 public interface ISplitRouteSource
 {
-    string ProgressKey { get; }
+    int Priority { get; }
 
     bool IsEnabled(SplitRoutingSettings settings);
 
     Task<IReadOnlyList<string>> CollectAsync(
         SplitRoutingSettings settings,
-        IProgress<string>? progress,
+        IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken);
 }

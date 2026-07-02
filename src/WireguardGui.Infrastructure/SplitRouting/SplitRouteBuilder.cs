@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
+using WireguardGui.Application.Contracts;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting;
@@ -10,7 +11,7 @@ public sealed class SplitRouteBuilder(
 {
     public async Task<IReadOnlyList<string>> BuildRoutesAsync(
         SplitRoutingSettings settings,
-        IProgress<string>? progress = null,
+        IProgress<SplitRoutingProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
@@ -21,32 +22,50 @@ public sealed class SplitRouteBuilder(
             settings.IncludeCloudflare,
             settings.CustomDomains.Count);
 
-        var routes = new HashSet<string>(StringComparer.Ordinal);
+        var orderedSources = sources.OrderBy(s => s.Priority).ToList();
+        var sourceResults = await Task.WhenAll(
+            orderedSources
+                .Where(s => s.IsEnabled(settings))
+                .Select(s => CollectFromSourceAsync(s, settings, progress, cancellationToken)));
 
-        foreach (var source in sources)
+        var maxRoutes = settings.MaxRoutes > 0 ? settings.MaxRoutes : SplitRoutingSettings.DefaultMaxRoutes;
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var totalCollected = 0;
+
+        foreach (var item in sourceResults.OrderBy(r => r.Priority))
         {
-            if (!source.IsEnabled(settings))
-                continue;
-
-            var collected = await source.CollectAsync(settings, progress, cancellationToken);
-            foreach (var route in collected)
-                routes.Add(route);
+            totalCollected += item.Routes.Count;
+            foreach (var route in item.Routes.OrderBy(r => r, StringComparer.Ordinal))
+            {
+                if (seen.Add(route))
+                    result.Add(route);
+            }
         }
 
-        var maxRoutes = settings.MaxRoutes > 0 ? settings.MaxRoutes : 200;
-        var result = routes
-            .OrderBy(r => r, StringComparer.Ordinal)
-            .Take(maxRoutes)
-            .ToList();
-
-        if (result.Count < routes.Count)
+        if (result.Count > maxRoutes)
+        {
+            var dropped = result.Count - maxRoutes;
             logger.LogWarning(
-                "Routes {Total}, limit {Max} — truncated to {Taken}",
-                routes.Count,
+                "Routes {Total}, limit {Max} — truncated to {Taken} ({Dropped} dropped)",
+                result.Count,
                 maxRoutes,
-                result.Count);
+                maxRoutes,
+                dropped);
+            result = result.Take(maxRoutes).ToList();
+        }
 
-        logger.LogInformation("Total routes after scan: {Count}", result.Count);
+        logger.LogInformation("Total routes after scan: {Count} (collected {Raw})", result.Count, totalCollected);
         return result;
+    }
+
+    private static async Task<(int Priority, string SourceName, IReadOnlyList<string> Routes)> CollectFromSourceAsync(
+        ISplitRouteSource source,
+        SplitRoutingSettings settings,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var routes = await source.CollectAsync(settings, progress, cancellationToken);
+        return (source.Priority, source.GetType().Name, routes);
     }
 }

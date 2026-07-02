@@ -6,6 +6,8 @@ namespace WireguardGui.Infrastructure.SplitRouting;
 
 internal sealed partial class DomainDnsResolver(IProcessRunner processRunner)
 {
+    private static readonly SemaphoreSlim ResolveGate = new(6, 6);
+
     public async Task<IReadOnlyList<string>> ResolveIpv4Async(
         string domain,
         CancellationToken cancellationToken)
@@ -15,20 +17,39 @@ internal sealed partial class DomainDnsResolver(IProcessRunner processRunner)
 
         EnsureDigAvailable();
 
-        var result = await processRunner.RunAsync(
-            "dig",
-            ["+short", "A", domain.Trim()],
-            cancellationToken);
+        await ResolveGate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await processRunner.RunAsync(
+                "dig",
+                ["+short", "A", domain.Trim()],
+                cancellationToken);
 
-        if (!result.IsSuccess)
-            return [];
+            if (!result.IsSuccess)
+                return [];
 
-        return result.StandardOutput
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim())
-            .Where(line => IpV4Pattern().IsMatch(line))
-            .Distinct()
+            return result.StandardOutput
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => IpV4Pattern().IsMatch(line))
+                .Distinct()
+                .ToList();
+        }
+        finally
+        {
+            ResolveGate.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> ResolveIpv4ParallelAsync(
+        IEnumerable<string> domains,
+        CancellationToken cancellationToken)
+    {
+        var tasks = domains
+            .Select(d => ResolveIpv4Async(d, cancellationToken))
             .ToList();
+        var results = await Task.WhenAll(tasks);
+        return results.SelectMany(r => r).Distinct().ToList();
     }
 
     public void EnsureDigAvailable()

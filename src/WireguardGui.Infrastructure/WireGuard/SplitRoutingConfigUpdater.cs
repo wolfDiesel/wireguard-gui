@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
+using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Exceptions;
 using WireguardGui.Domain;
 
@@ -13,7 +14,7 @@ public sealed class SplitRoutingConfigUpdater(
 {
     public async Task<SplitRoutingConfigUpdateResult> TryUpdateConfigAsync(
         VpnProfile profile,
-        IProgress<string>? progress = null,
+        IProgress<SplitRoutingProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (!profile.SplitRouting.Enabled)
@@ -55,10 +56,10 @@ public sealed class SplitRoutingConfigUpdater(
             return new SplitRoutingConfigUpdateResult(false, routes.Count, routesCsv, null);
         }
 
-        progress?.Report("Progress_Write_Config");
+        progress?.Report(new SplitRoutingProgress("Progress_Write_Config"));
 
         var updated = configParser.WriteAllowedIps(configContent, routesCsv);
-        if (dnsPresent)
+        if (dnsPresent && SplitRoutingPolicy.RemoveDnsOnApply)
             updated = configParser.RemoveDns(updated);
 
         await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
@@ -66,7 +67,7 @@ public sealed class SplitRoutingConfigUpdater(
             "Config {Profile}: updated AllowedIPs ({Count} routes), DNS removed={DnsRemoved}",
             profile.Name,
             routes.Count,
-            dnsPresent);
+            dnsPresent && SplitRoutingPolicy.RemoveDnsOnApply);
 
         return new SplitRoutingConfigUpdateResult(true, routes.Count, routesCsv, null);
     }

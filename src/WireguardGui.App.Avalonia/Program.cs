@@ -14,7 +14,11 @@ sealed class Program
         services.AddLogging(builder =>
         {
             builder.AddConsole();
+#if DEBUG
             builder.SetMinimumLevel(LogLevel.Debug);
+#else
+            builder.SetMinimumLevel(LogLevel.Information);
+#endif
         });
         services.AddAvaloniaApp();
         AppServices.Initialize(services.BuildServiceProvider());

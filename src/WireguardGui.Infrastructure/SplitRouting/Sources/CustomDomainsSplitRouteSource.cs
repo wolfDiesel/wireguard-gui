@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
+using WireguardGui.Application.Contracts;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting.Sources;
@@ -8,36 +9,34 @@ internal sealed class CustomDomainsSplitRouteSource(
     DomainDnsResolver dnsResolver,
     ILogger<CustomDomainsSplitRouteSource> logger) : ISplitRouteSource
 {
-    public string ProgressKey => "Progress_Resolve_Domain";
+    public int Priority => 1;
 
     public bool IsEnabled(SplitRoutingSettings settings) => settings.CustomDomains.Count > 0;
 
     public async Task<IReadOnlyList<string>> CollectAsync(
         SplitRoutingSettings settings,
-        IProgress<string>? progress,
+        IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
     {
         dnsResolver.EnsureDigAvailable();
 
         var routes = new List<string>();
+        var domains = settings.CustomDomains
+            .Select(d => d.Trim())
+            .Where(d => d.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var domain in settings.CustomDomains)
+        foreach (var domain in domains)
         {
-            var trimmed = domain.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed))
-                continue;
+            progress?.Report(new SplitRoutingProgress("Progress_Resolve_Domain", domain));
+            logger.LogInformation("Resolving domain {Domain}…", domain);
 
-            progress?.Report($"{ProgressKey}|{trimmed}");
-            logger.LogInformation("Resolving domain {Domain}…", trimmed);
-
-            var ips = await dnsResolver.ResolveIpv4Async(trimmed, cancellationToken);
+            var ips = await dnsResolver.ResolveIpv4Async(domain, cancellationToken);
             foreach (var ip in ips)
                 routes.Add($"{ip}/32");
 
-            logger.LogInformation(
-                "Domain {Domain}: {Count} addresses",
-                trimmed,
-                ips.Count);
+            logger.LogInformation("Domain {Domain}: {Count} addresses", domain, ips.Count);
         }
 
         return routes;

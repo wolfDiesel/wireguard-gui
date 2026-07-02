@@ -19,10 +19,6 @@ public sealed record ImportProfileResultDto(
     string? ProfileId,
     string? ErrorMessage);
 
-public sealed record OperationResultDto(
-    bool Success,
-    string? ErrorMessage);
-
 public sealed record SystemCapabilitiesDto(
     IReadOnlyList<BackendCapabilityDto> Backends,
     bool AnyAvailable);
@@ -39,3 +35,29 @@ public sealed record SplitRoutingResultDto(
     int RouteCount,
     string? RoutesCsv,
     string? ErrorMessage);
+
+public sealed record SplitRoutingSettingsResultDto(
+    bool Success,
+    SplitRoutingSettings? Settings,
+    string? ErrorMessage);
+
+public enum OperationErrorCode
+{
+    None,
+    ProfileNotFound,
+    BackendUnavailable,
+    ConfigNotFound,
+    ConfigInvalid,
+    ConnectionFailed,
+    SplitRoutingDisabled,
+    NoRoutesGenerated,
+    SaveFailed,
+    DeleteFailed,
+    Unknown,
+}
+
+public sealed record OperationResultDto(
+    bool Success,
+    OperationErrorCode ErrorCode = OperationErrorCode.None,
+    string? ErrorMessage = null,
+    string? WarningMessage = null);

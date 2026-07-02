@@ -3,6 +3,7 @@ using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Exceptions;
 using WireguardGui.Domain;
+using WireguardGui.Application.Services;
 
 namespace WireguardGui.Application.Handlers;
 
@@ -18,7 +19,7 @@ public sealed class ConnectProfileHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Profile not found");
+            return new OperationResultDto(false, OperationErrorCode.ProfileNotFound, "Profile not found");
 
         var backend = backendFactory.GetBackend(profile.Backend);
 
@@ -30,14 +31,14 @@ public sealed class ConnectProfileHandler(
                 profile,
                 cancellationToken: cancellationToken);
             if (configUpdate.ErrorMessage is not null)
-                return new OperationResultDto(false, configUpdate.ErrorMessage);
+                return new OperationResultDto(false, OperationErrorCode.NoRoutesGenerated, configUpdate.ErrorMessage);
         }
 
         try
         {
             logger.LogInformation("Connecting profile {Name} ({Backend})", profile.Name, profile.Backend);
 
-            if (profile.SplitRouting.Enabled)
+            if (profile.SplitRouting.Enabled && configUpdate?.Changed == true)
                 await backend.ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
             else
                 await backend.ConnectAsync(profile, cancellationToken);
@@ -45,26 +46,16 @@ public sealed class ConnectProfileHandler(
             profile = await profileStore.GetProfileAsync(profileId, cancellationToken) ?? profile;
             var state = await backend.GetConnectionStateAsync(profile, cancellationToken);
             if (state != ConnectionState.Connected)
-                return new OperationResultDto(false, "Connection not active after connect");
+                return new OperationResultDto(false, OperationErrorCode.ConnectionFailed, "Connection not active after connect");
 
             logger.LogInformation("Profile {Name} connected", profile.Name);
-            return new OperationResultDto(true, null);
+            return new OperationResultDto(true);
         }
         catch (WireGuardOperationException ex)
         {
             profile = await profileStore.GetProfileAsync(profileId, cancellationToken) ?? profile;
             var state = await backend.GetConnectionStateAsync(profile, cancellationToken);
-            if (state == ConnectionState.Connected)
-            {
-                logger.LogWarning(
-                    "Connect {Name}: error \"{Message}\", but connection is active",
-                    profile.Name,
-                    ex.UserMessage);
-                return new OperationResultDto(true, null);
-            }
-
-            logger.LogWarning("Connect {Name} failed: {Message}", profile.Name, ex.UserMessage);
-            return new OperationResultDto(false, ex.UserMessage);
+            return ConnectionOutcomeResolver.ResolveAfterFailure(state, ex.UserMessage);
         }
     }
 }

@@ -12,7 +12,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddWireguardGuiInfrastructure(this IServiceCollection services)
     {
+        services.AddSingleton<IAppDataPaths, AppDataPaths>();
         services.AddSingleton<DomainDnsResolver>();
+        // ISplitRouteSource order: lower Priority value = higher route priority when truncating.
         services.AddSingleton<ISplitRouteSource, TelegramSplitRouteSource>();
         services.AddSingleton<ISplitRouteSource, CloudflareSplitRouteSource>();
         services.AddSingleton<ISplitRouteSource, CustomDomainsSplitRouteSource>();
@@ -24,6 +26,7 @@ public static class DependencyInjection
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<ISystemCapabilityProbe, SystemCapabilityProbe>();
         services.AddSingleton<IProfileStore, JsonProfileStore>();
+        services.AddSingleton<IProfileImporter, ProfileImporter>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IWireGuardConfigValidator, WireGuardConfigValidator>();
         services.AddSingleton<IWireGuardConfigParser, WireGuardConfigParser>();

@@ -16,7 +16,7 @@ public sealed class DisconnectProfileHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Profile not found");
+            return new OperationResultDto(false, OperationErrorCode.ProfileNotFound, "Profile not found");
 
         try
         {
@@ -24,12 +24,12 @@ public sealed class DisconnectProfileHandler(
             var backend = backendFactory.GetBackend(profile.Backend);
             await backend.DisconnectAsync(profile, cancellationToken);
             logger.LogInformation("Profile {Name} disconnected", profile.Name);
-            return new OperationResultDto(true, null);
+            return new OperationResultDto(true);
         }
         catch (WireGuardOperationException ex)
         {
             logger.LogWarning("Disconnect {Name} failed: {Message}", profile.Name, ex.UserMessage);
-            return new OperationResultDto(false, ex.UserMessage);
+            return new OperationResultDto(false, OperationErrorCode.ConnectionFailed, ex.UserMessage);
         }
     }
 }

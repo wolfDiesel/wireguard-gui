@@ -73,7 +73,7 @@
                            Fill="{Binding SelectedProfile.IsConnected, Converter={x:Static conv:ConnectionBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding SelectedProfile.StateLabel}" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="{Binding SplitRoutingLabel}" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="{Binding SplitRouting.SplitRoutingLabel}" />
                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedSplitRoutingOnOff}" />
               </Grid>
               <StackPanel Orientation="Horizontal" Spacing="8">
@@ -89,11 +89,12 @@
             </StackPanel>
           </Border>
 
-          <Border Classes="settings-panel" Padding="16">
+          <Border Classes="settings-panel" Padding="16" DataContext="{Binding SplitRouting}">
             <StackPanel Spacing="10">
               <TextBlock Classes="section-title" Text="{Binding SplitRoutingLabel}" />
               <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintCloudflare}" />
               <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintTwitch}" />
+              <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitHintDnsRemoved}" />
               <TextBlock Classes="text-muted" TextWrapping="Wrap"
                          IsVisible="{Binding ShowReconnectHint}"
                          Text="{Binding SplitHintReconnect}" />
@@ -118,7 +119,7 @@
                        IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <controls:AppButton Variant="Primary" Content="{Binding SplitApplyLabel}"
-                        Command="{Binding ApplySplitRoutingCommand}"
+                        Command="{Binding ApplyCommand}"
                         IsEnabled="{Binding CanApplySplitRouting}" />
               </StackPanel>
             </StackPanel>

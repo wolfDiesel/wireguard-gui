@@ -20,10 +20,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     private readonly StatusBarService _statusBar;
     private DispatcherTimer? _pollTimer;
     private bool _refreshing;
-    private bool _splitRoutingApplyInProgress;
-    private bool _loadingSplitRouting;
-    private string? _loadedSplitRoutingProfileId;
-    private SplitRoutingSettings? _savedSplitRouting;
 
     [ObservableProperty]
     private bool _setupRequired;
@@ -43,25 +39,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     [ObservableProperty]
     private ProfileRowViewModel? _selectedProfile;
 
-    [ObservableProperty]
-    private bool _splitRoutingEnabled;
-
-    public bool SplitRoutingOptionsEnabled => SplitRoutingEnabled;
-
-    [ObservableProperty]
-    private bool _splitYoutube = true;
-
-    [ObservableProperty]
-    private bool _splitTelegram = true;
-
-    [ObservableProperty]
-    private bool _splitTwitch;
-
-    [ObservableProperty]
-    private bool _splitCloudflare;
-
-    [ObservableProperty]
-    private string _customDomainsText = string.Empty;
+    public SplitRoutingPanelViewModel SplitRouting { get; }
 
     public ObservableCollection<ProfileRowViewModel> Profiles { get; } = new();
 
@@ -73,18 +51,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     public string ConnectLabel => T("Profiles_Connect");
     public string DisconnectLabel => T("Profiles_Disconnect");
     public string DeleteLabel => T("Profiles_Delete");
-    public string SplitRoutingLabel => T("Profiles_SplitRouting");
-    public string SplitEnableLabel => T("Profiles_Split_Enable");
-    public string SplitYoutubeLabel => T("Profiles_Split_Youtube");
-    public string SplitTelegramLabel => T("Profiles_Split_Telegram");
-    public string SplitTwitchLabel => T("Profiles_Split_Twitch");
-    public string SplitCloudflareLabel => T("Profiles_Split_Cloudflare");
-    public string SplitDomainsLabel => T("Profiles_Split_Domains");
-    public string SplitApplyLabel => T("Profiles_Split_Apply");
-    public string SplitHintCloudflare => T("Profiles_Split_Hint_Cloudflare");
-    public string SplitHintTwitch => T("Profiles_Split_Hint_Twitch");
-    public string SplitHintReconnect => T("Profiles_Split_Hint_Reconnect");
-    public string SplitSyncingLabel => T("Profiles_Split_Syncing");
     public string SelectedSplitRoutingOnOff => SelectedProfile is null
         ? string.Empty
         : SelectedProfile.SplitRoutingEnabled ? T("On") : T("Off");
@@ -99,12 +65,14 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         HandlerInvoker invoker,
         AppToastService toast,
         StatusBarService statusBar,
+        SplitRoutingPanelViewModel splitRouting,
         LocalizationService localization)
         : base(localization)
     {
         _invoker = invoker;
         _toast = toast;
         _statusBar = statusBar;
+        SplitRouting = splitRouting;
     }
 
     public async Task InitializeAsync()
@@ -124,55 +92,14 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         _pollTimer = null;
     }
 
-    private void StartPolling()
-    {
-        StopPolling();
-        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _pollTimer.Tick += OnPollTick;
-        _pollTimer.Start();
-    }
-
-    private void OnPollTick(object? sender, EventArgs e) => _ = PollTickAsync();
-
-    private async Task PollTickAsync()
-    {
-        if (_refreshing)
-            return;
-
-        _refreshing = true;
-        try
-        {
-            await PollProfileStatesAsync();
-        }
-        finally
-        {
-            _refreshing = false;
-        }
-    }
-
     public bool CanConnectSelected => SelectedProfile is { IsConnected: false };
     public bool CanDisconnectSelected => SelectedProfile is { IsConnected: true };
-    public bool CanApplySplitRouting =>
-        SelectedProfile is not null && SplitRoutingEnabled && HasUnappliedSplitRoutingChanges && !IsApplyingRoutes;
-
-    [ObservableProperty]
-    private bool _hasUnappliedSplitRoutingChanges;
-
-    [ObservableProperty]
-    private bool _isApplyingRoutes;
-
-    [ObservableProperty]
-    private string _applyRoutesStatus = string.Empty;
-
-    public bool ShowReconnectHint =>
-        SelectedProfile is { IsConnected: true } && SplitRoutingEnabled;
 
     [RelayCommand]
     private async Task ConnectSelectedAsync()
     {
         if (SelectedProfile is null)
             return;
-
         await ConnectAsync(SelectedProfile);
     }
 
@@ -181,7 +108,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     {
         if (SelectedProfile is null)
             return;
-
         await DisconnectAsync(SelectedProfile);
     }
 
@@ -190,7 +116,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     {
         if (SelectedProfile is null)
             return;
-
         await DeleteAsync(SelectedProfile);
     }
 
@@ -251,22 +176,25 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             return;
 
         if (SelectedProfile?.Id == row.Id)
-            await PersistSplitRoutingFromUiAsync();
+            await SplitRouting.PersistBeforeConnectAsync();
 
         var result = await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<ConnectProfileHandler>().HandleAsync(row.Id));
 
         if (!result.Success)
         {
-            _toast.ShowError(T("Toast_Connect_Failed"), result.ErrorMessage);
-            _statusBar.StatusText = result.ErrorMessage ?? T("Status_Error");
+            var message = OperationErrorMapper.ResolveMessage(Localization, result.ErrorCode, result.ErrorMessage);
+            _toast.ShowError(T("Toast_Connect_Failed"), message);
+            _statusBar.StatusText = message;
             return;
         }
 
-        _toast.ShowSuccess(T("Toast_Connect_Success"), row.Name);
+        if (!string.IsNullOrWhiteSpace(result.WarningMessage))
+            _toast.ShowInfo(T("Toast_Connect_Success"), result.WarningMessage);
+        else
+            _toast.ShowSuccess(T("Toast_Connect_Success"), row.Name);
         row.State = ConnectionState.Connected;
         OnSelectedProfileActionsChanged();
-        CaptureSavedSplitRoutingFromUi();
         await PollProfileStatesAsync();
     }
 
@@ -277,14 +205,15 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             return;
 
         if (SelectedProfile?.Id == row.Id)
-            await PersistSplitRoutingFromUiAsync();
+            await SplitRouting.PersistBeforeConnectAsync();
 
         var result = await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<DisconnectProfileHandler>().HandleAsync(row.Id));
 
         if (!result.Success)
         {
-            _toast.ShowError(T("Toast_Disconnect_Failed"), result.ErrorMessage);
+            var message = OperationErrorMapper.ResolveMessage(Localization, result.ErrorCode, result.ErrorMessage);
+            _toast.ShowError(T("Toast_Disconnect_Failed"), message);
             return;
         }
 
@@ -305,7 +234,8 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
         if (!result.Success)
         {
-            _toast.ShowError(T("Toast_Delete_Failed"), result.ErrorMessage);
+            var message = OperationErrorMapper.ResolveMessage(Localization, result.ErrorCode, result.ErrorMessage);
+            _toast.ShowError(T("Toast_Delete_Failed"), message);
             return;
         }
 
@@ -313,118 +243,24 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         if (SelectedProfile?.Id == row.Id)
             SelectedProfile = null;
 
-        _toast.ShowSuccess(T("Toast_Delete_Success"));
+        if (string.IsNullOrWhiteSpace(result.WarningMessage))
+            _toast.ShowSuccess(T("Toast_Delete_Success"));
+        else
+            _toast.ShowInfo(T("Toast_Delete_Success"), result.WarningMessage);
         await RefreshProfilesAsync();
     }
-
-    [RelayCommand(CanExecute = nameof(CanApplySplitRouting))]
-    private async Task ApplySplitRoutingAsync()
-    {
-        if (SelectedProfile is null)
-            return;
-
-        if (_splitRoutingApplyInProgress)
-            return;
-
-        _splitRoutingApplyInProgress = true;
-        IsApplyingRoutes = true;
-        ApplyRoutesStatus = T("Progress_Preparing");
-        try
-        {
-            if (!await PersistSplitRoutingFromUiAsync())
-                return;
-
-            var progress = new Progress<string>(status =>
-            {
-                var localized = LocalizationProgress.Format(Localization, status);
-                Dispatcher.UIThread.Post(() =>
-                {
-                    ApplyRoutesStatus = localized;
-                    _statusBar.StatusText = localized;
-                });
-            });
-
-            var profileId = SelectedProfile.Id;
-            var result = await _invoker.InvokeAsync(sp =>
-                sp.GetRequiredService<ApplySplitRoutingHandler>().HandleAsync(profileId, progress));
-
-            if (!result.Success)
-            {
-                _toast.ShowError(T("Toast_Routes_Failed"), result.ErrorMessage);
-                return;
-            }
-
-            CaptureSavedSplitRoutingFromUi();
-
-            if (result.RoutesCsv is null)
-            {
-                _toast.ShowInfo(T("Toast_Routes_Unchanged"), Tf("Toast_Routes_Unchanged_Detail", result.RouteCount));
-                return;
-            }
-
-            _toast.ShowSuccess(T("Toast_Routes_Success"), Tf("Toast_Routes_Success_Detail", result.RouteCount));
-            if (result.RouteCount >= 200)
-                _toast.ShowInfo(T("Toast_Routes_Limit"), T("Toast_Routes_Limit_Detail"));
-
-            if (SelectedProfile is not null)
-            {
-                SelectedProfile.State = ConnectionState.Connected;
-                OnSelectedProfileActionsChanged();
-            }
-        }
-        finally
-        {
-            _splitRoutingApplyInProgress = false;
-            IsApplyingRoutes = false;
-            ApplyRoutesStatus = string.Empty;
-            ApplySplitRoutingCommand.NotifyCanExecuteChanged();
-            await PollProfileStatesAsync();
-        }
-    }
-
-    partial void OnSplitRoutingEnabledChanged(bool value)
-    {
-        OnPropertyChanged(nameof(SplitRoutingOptionsEnabled));
-        OnPropertyChanged(nameof(SelectedSplitRoutingOnOff));
-        OnSplitRoutingSettingsEdited();
-    }
-
-    partial void OnSplitYoutubeChanged(bool value) => OnSplitRoutingSettingsEdited();
-
-    partial void OnSplitTelegramChanged(bool value) => OnSplitRoutingSettingsEdited();
-
-    partial void OnSplitTwitchChanged(bool value) => OnSplitRoutingSettingsEdited();
-
-    partial void OnSplitCloudflareChanged(bool value) => OnSplitRoutingSettingsEdited();
-
-    partial void OnCustomDomainsTextChanged(string value) => OnSplitRoutingSettingsEdited();
 
     partial void OnSelectedProfileChanged(ProfileRowViewModel? value)
     {
         OnSelectedProfileActionsChanged();
-        OnPropertyChanged(nameof(ShowReconnectHint));
         OnPropertyChanged(nameof(SelectedSplitRoutingOnOff));
-        if (value?.Id == _loadedSplitRoutingProfileId)
-            return;
-
-        _loadedSplitRoutingProfileId = value?.Id;
-        _ = LoadSplitRoutingAsync(value);
+        SplitRouting.BindSelectedProfile(value);
     }
 
     private void OnSelectedProfileActionsChanged()
     {
         OnPropertyChanged(nameof(CanConnectSelected));
         OnPropertyChanged(nameof(CanDisconnectSelected));
-        OnPropertyChanged(nameof(ShowReconnectHint));
-        ApplySplitRoutingCommand.NotifyCanExecuteChanged();
-    }
-
-    private void OnSplitRoutingSettingsEdited()
-    {
-        if (_loadingSplitRouting)
-            return;
-
-        UpdateSplitRoutingDirtyState();
     }
 
     public string? GetActiveConnectedProfileId() =>
@@ -448,101 +284,30 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             await DisconnectAsync(row);
     }
 
-    private async Task LoadSplitRoutingAsync(ProfileRowViewModel? row)
+    private void StartPolling()
     {
-        if (row is null)
+        StopPolling();
+        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _pollTimer.Tick += OnPollTick;
+        _pollTimer.Start();
+    }
+
+    private void OnPollTick(object? sender, EventArgs e) => _ = PollTickAsync();
+
+    private async Task PollTickAsync()
+    {
+        if (_refreshing)
             return;
 
-        var profile = await _invoker.InvokeAsync(sp =>
-            sp.GetRequiredService<WireguardGui.Application.Abstractions.IProfileStore>()
-                .GetProfileAsync(row.Id));
-
-        if (profile is null)
-            return;
-
-        _loadingSplitRouting = true;
+        _refreshing = true;
         try
         {
-            SplitRoutingEnabled = profile.SplitRouting.Enabled;
-            SplitYoutube = profile.SplitRouting.Youtube;
-            SplitTelegram = profile.SplitRouting.Telegram;
-            SplitTwitch = profile.SplitRouting.Twitch;
-            SplitCloudflare = profile.SplitRouting.IncludeCloudflare;
-            CustomDomainsText = string.Join('\n', profile.SplitRouting.CustomDomains);
-            _savedSplitRouting = profile.SplitRouting;
-            UpdateSplitRoutingDirtyState();
+            await PollProfileStatesAsync();
         }
         finally
         {
-            _loadingSplitRouting = false;
+            _refreshing = false;
         }
-    }
-
-    private SplitRoutingSettings BuildSplitRoutingSettingsFromUi()
-    {
-        var domains = CustomDomainsText
-            .Split(['\n', '\r', ' ', ',', ';'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(d => d.Trim())
-            .Where(d => d.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return new SplitRoutingSettings(
-            SplitRoutingEnabled,
-            SplitYoutube,
-            SplitTelegram,
-            SplitTwitch,
-            domains,
-            SplitCloudflare,
-            200);
-    }
-
-    private void CaptureSavedSplitRoutingFromUi()
-    {
-        _savedSplitRouting = BuildSplitRoutingSettingsFromUi();
-        UpdateSplitRoutingDirtyState();
-    }
-
-    private void UpdateSplitRoutingDirtyState()
-    {
-        var current = BuildSplitRoutingSettingsFromUi();
-        HasUnappliedSplitRoutingChanges = _savedSplitRouting is null
-            || !SplitRoutingSettingsEqual(_savedSplitRouting, current);
-        OnPropertyChanged(nameof(CanApplySplitRouting));
-        ApplySplitRoutingCommand.NotifyCanExecuteChanged();
-    }
-
-    private static bool SplitRoutingSettingsEqual(SplitRoutingSettings left, SplitRoutingSettings right) =>
-        left.Enabled == right.Enabled
-        && left.Youtube == right.Youtube
-        && left.Telegram == right.Telegram
-        && left.Twitch == right.Twitch
-        && left.IncludeCloudflare == right.IncludeCloudflare
-        && left.MaxRoutes == right.MaxRoutes
-        && left.CustomDomains.SequenceEqual(right.CustomDomains, StringComparer.OrdinalIgnoreCase);
-
-    private async Task<bool> PersistSplitRoutingFromUiAsync(bool showToast = false)
-    {
-        if (SelectedProfile is null)
-            return false;
-
-        var settings = BuildSplitRoutingSettingsFromUi();
-
-        var saveResult = await _invoker.InvokeAsync(sp =>
-            sp.GetRequiredService<SaveProfileSplitRoutingHandler>().HandleAsync(
-                SelectedProfile.Id,
-                settings));
-
-        if (!saveResult.Success)
-        {
-            _toast.ShowError(T("Toast_SaveSplit_Failed"), saveResult.ErrorMessage);
-            return false;
-        }
-
-        SelectedProfile.SplitRoutingEnabled = SplitRoutingEnabled;
-        if (showToast)
-            _toast.ShowSuccess(T("Toast_Split_Saved"));
-        return true;
     }
 
     private async Task RefreshCapabilitiesAsync()
@@ -586,66 +351,12 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
     private async Task RefreshProfilesAsync()
     {
-        var selectedId = SelectedProfile?.Id;
         var items = await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<GetProfilesHandler>().HandleAsync());
 
-        for (var i = Profiles.Count - 1; i >= 0; i--)
-        {
-            if (items.All(it => it.Id != Profiles[i].Id))
-            {
-                if (Profiles[i].Id == selectedId)
-                    SelectedProfile = null;
-                Profiles.RemoveAt(i);
-            }
-        }
-
-        foreach (var item in items)
-        {
-            var row = Profiles.FirstOrDefault(p => p.Id == item.Id);
-            if (row is null)
-            {
-                Profiles.Add(new ProfileRowViewModel(
-                    Localization,
-                    item.Id,
-                    item.Name,
-                    item.ConnectionName,
-                    item.Backend,
-                    item.State,
-                    item.SplitRoutingEnabled));
-                continue;
-            }
-
-            row.Name = item.Name;
-            row.ConnectionName = item.ConnectionName;
-            row.Backend = item.Backend;
-            row.State = item.State;
-            row.SplitRoutingEnabled = item.SplitRoutingEnabled;
-        }
-
-        for (var target = 0; target < items.Count; target++)
-        {
-            var id = items[target].Id;
-            var current = -1;
-            for (var i = 0; i < Profiles.Count; i++)
-            {
-                if (Profiles[i].Id != id)
-                    continue;
-                current = i;
-                break;
-            }
-
-            if (current >= 0 && current != target)
-                Profiles.Move(current, target);
-        }
-
-        if (selectedId is not null)
-        {
-            var row = Profiles.FirstOrDefault(p => p.Id == selectedId);
-            if (row is not null && !ReferenceEquals(SelectedProfile, row))
-                SelectedProfile = row;
-        }
-
+        var selected = SelectedProfile;
+        ProfileListSynchronizer.Reconcile(Profiles, items, ref selected, Localization);
+        SelectedProfile = selected;
         UpdateStatusBar(items);
     }
 
@@ -671,18 +382,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             nameof(ConnectLabel),
             nameof(DisconnectLabel),
             nameof(DeleteLabel),
-            nameof(SplitRoutingLabel),
-            nameof(SplitEnableLabel),
-            nameof(SplitYoutubeLabel),
-            nameof(SplitTelegramLabel),
-            nameof(SplitTwitchLabel),
-            nameof(SplitCloudflareLabel),
-            nameof(SplitDomainsLabel),
-            nameof(SplitApplyLabel),
-            nameof(SplitHintCloudflare),
-            nameof(SplitHintTwitch),
-            nameof(SplitHintReconnect),
-            nameof(SplitSyncingLabel),
             nameof(SelectedSplitRoutingOnOff),
             nameof(SetupTitle),
             nameof(SetupBody),

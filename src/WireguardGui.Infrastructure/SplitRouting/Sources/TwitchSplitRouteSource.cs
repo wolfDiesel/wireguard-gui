@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
+using WireguardGui.Application.Contracts;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting.Sources;
@@ -8,16 +9,16 @@ internal sealed class TwitchSplitRouteSource(
     DomainDnsResolver dnsResolver,
     ILogger<TwitchSplitRouteSource> logger) : ISplitRouteSource
 {
-    public string ProgressKey => "Progress_Routes_Twitch";
+    public int Priority => 1;
 
     public bool IsEnabled(SplitRoutingSettings settings) => settings.Twitch;
 
     public async Task<IReadOnlyList<string>> CollectAsync(
         SplitRoutingSettings settings,
-        IProgress<string>? progress,
+        IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report(ProgressKey);
+        progress?.Report(new SplitRoutingProgress("Progress_Routes_Twitch"));
         dnsResolver.EnsureDigAvailable();
 
         var domains = TwitchDomainNormalizer.Normalize(SplitRoutingConstants.TwitchDomains);
@@ -25,7 +26,7 @@ internal sealed class TwitchSplitRouteSource(
 
         foreach (var domain in domains)
         {
-            progress?.Report($"Progress_Resolve_Domain|{domain}");
+            progress?.Report(new SplitRoutingProgress("Progress_Resolve_Domain", domain));
             logger.LogInformation("Twitch: resolving {Domain}…", domain);
 
             var ips = await dnsResolver.ResolveIpv4Async(domain, cancellationToken);

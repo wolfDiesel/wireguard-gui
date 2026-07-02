@@ -1,29 +1,23 @@
 using System.Net.Sockets;
 using System.Text;
-using WireguardGui.Application.Abstractions;
 
 namespace WireguardGui.Desktop;
 
 public sealed class SingleInstanceHost : IAsyncDisposable
 {
-    private readonly IPendingTorrentLaunchStore _pendingStore;
     private readonly Action _activateWindow;
     private readonly string _socketPath;
     private Socket? _listener;
     private CancellationTokenSource? _cts;
     private Task? _acceptLoop;
 
-    public SingleInstanceHost(
-        IPendingTorrentLaunchStore pendingStore,
-        Action activateWindow,
-        string? socketPath = null)
+    public SingleInstanceHost(Action activateWindow, string? socketPath = null)
     {
-        _pendingStore = pendingStore;
         _activateWindow = activateWindow;
         _socketPath = socketPath ?? ResolveSocketPath();
     }
 
-    public static bool TryForwardToRunningInstance(string? torrentPath, string? socketPath = null)
+    public static bool TryForwardToRunningInstance(string? socketPath = null)
     {
         if (!OperatingSystem.IsLinux())
             return false;
@@ -36,10 +30,7 @@ public sealed class SingleInstanceHost : IAsyncDisposable
         {
             using var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             client.Connect(new UnixDomainSocketEndPoint(path));
-            var payload = string.IsNullOrWhiteSpace(torrentPath)
-                ? SingleInstanceMessage.ActivateCommand
-                : SingleInstanceMessage.FormatOpenTorrent(Path.GetFullPath(torrentPath));
-            var bytes = Encoding.UTF8.GetBytes(payload);
+            var bytes = Encoding.UTF8.GetBytes(SingleInstanceMessage.ActivateCommand);
             client.Send(bytes);
             return true;
         }
@@ -133,11 +124,8 @@ public sealed class SingleInstanceHost : IAsyncDisposable
                 return;
 
             var line = Encoding.UTF8.GetString(buffer, 0, received);
-            if (!SingleInstanceMessage.TryParse(line, out var torrentPath, out var activateOnly))
+            if (!SingleInstanceMessage.IsActivateCommand(line))
                 return;
-
-            if (!string.IsNullOrWhiteSpace(torrentPath))
-                _pendingStore.SetPendingPath(torrentPath);
 
             _activateWindow();
         }

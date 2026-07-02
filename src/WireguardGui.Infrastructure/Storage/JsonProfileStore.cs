@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
 
@@ -12,14 +13,20 @@ public sealed class JsonProfileStore : IProfileStore
         WriteIndented = true,
     };
 
-    public string DataRoot { get; }
+    private readonly ILogger<JsonProfileStore> _logger;
 
-    public JsonProfileStore()
-        : this(GetDefaultDataRoot())
+    public JsonProfileStore(ILogger<JsonProfileStore> logger)
+        : this(GetDefaultDataRoot(), logger)
     {
     }
 
-    public JsonProfileStore(string dataRoot) => DataRoot = dataRoot;
+    public JsonProfileStore(string dataRoot, ILogger<JsonProfileStore> logger)
+    {
+        DataRoot = dataRoot;
+        _logger = logger;
+    }
+
+    public string DataRoot { get; }
 
     public async Task<IReadOnlyList<VpnProfile>> ListProfilesAsync(CancellationToken cancellationToken = default)
     {
@@ -36,8 +43,12 @@ public sealed class JsonProfileStore : IProfileStore
 
             var json = await File.ReadAllTextAsync(profileFile, cancellationToken).ConfigureAwait(false);
             var file = JsonSerializer.Deserialize<ProfileFile>(json, JsonOptions);
-            if (file is not null)
-                profiles.Add(await NormalizeProfileAsync(file.ToDomain(), dir, cancellationToken));
+            if (file is null)
+                continue;
+
+            var profile = file.ToDomain();
+            var migrated = await MigrateIfNeededAsync(profile, dir, cancellationToken);
+            profiles.Add(migrated);
         }
 
         return profiles.OrderBy(p => p.Name).ToList();
@@ -51,20 +62,19 @@ public sealed class JsonProfileStore : IProfileStore
 
         var json = await File.ReadAllTextAsync(profileFile, cancellationToken).ConfigureAwait(false);
         var file = JsonSerializer.Deserialize<ProfileFile>(json, JsonOptions);
-        if (file is null)
-            return null;
-
-        return await NormalizeProfileAsync(file.ToDomain(), GetProfileDirectory(profileId), cancellationToken);
+        return file?.ToDomain();
     }
 
     public async Task SaveProfileAsync(VpnProfile profile, CancellationToken cancellationToken = default)
     {
-        var dir = GetProfileDirectory(profile.Id);
+        var normalized = profile with { SplitRouting = profile.SplitRouting.Normalize() };
+        var dir = GetProfileDirectory(normalized.Id);
         Directory.CreateDirectory(dir);
 
+        var migrated = await MigrateIfNeededAsync(normalized, dir, cancellationToken);
         var profileFile = Path.Combine(dir, "profile.json");
         await using var stream = File.Create(profileFile);
-        await JsonSerializer.SerializeAsync(stream, ProfileFile.FromDomain(profile), JsonOptions, cancellationToken);
+        await JsonSerializer.SerializeAsync(stream, ProfileFile.FromDomain(migrated), JsonOptions, cancellationToken);
     }
 
     public Task DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
@@ -87,7 +97,8 @@ public sealed class JsonProfileStore : IProfileStore
 
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(profileFile));
+            var json = File.ReadAllText(profileFile);
+            using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("configFileName", out var name))
             {
                 var fileName = name.GetString();
@@ -95,8 +106,9 @@ public sealed class JsonProfileStore : IProfileStore
                     return Path.Combine(dir, fileName);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to read config file name from profile {ProfileId}", profileId);
         }
 
         return Path.Combine(dir, "wireguard.conf");
@@ -105,14 +117,14 @@ public sealed class JsonProfileStore : IProfileStore
     public string GetConfigPath(VpnProfile profile) =>
         Path.Combine(GetProfileDirectory(profile.Id), profile.ConfigFileName);
 
-    private async Task<VpnProfile> NormalizeProfileAsync(
+    private async Task<VpnProfile> MigrateIfNeededAsync(
         VpnProfile profile,
         string dir,
         CancellationToken cancellationToken)
     {
         var expectedFileName = $"{profile.ConnectionName}.conf";
         if (string.Equals(profile.ConfigFileName, expectedFileName, StringComparison.Ordinal))
-            return profile;
+            return profile with { SplitRouting = profile.SplitRouting.Normalize() };
 
         var oldPath = Path.Combine(dir, profile.ConfigFileName);
         var newPath = Path.Combine(dir, expectedFileName);
@@ -124,8 +136,15 @@ public sealed class JsonProfileStore : IProfileStore
                 File.Move(oldPath, newPath);
         }
 
-        var updated = profile with { ConfigFileName = expectedFileName };
-        await SaveProfileAsync(updated, cancellationToken);
+        var updated = profile with { ConfigFileName = expectedFileName, SplitRouting = profile.SplitRouting.Normalize() };
+        var profileFile = Path.Combine(dir, "profile.json");
+        await using var stream = File.Create(profileFile);
+        await JsonSerializer.SerializeAsync(stream, ProfileFile.FromDomain(updated), JsonOptions, cancellationToken);
+        _logger.LogInformation(
+            "Migrated profile {ProfileId} config file name {Old} → {New}",
+            profile.Id,
+            profile.ConfigFileName,
+            expectedFileName);
         return updated;
     }
 
@@ -175,18 +194,21 @@ public sealed class JsonProfileStore : IProfileStore
         public bool Telegram { get; set; } = true;
         public bool Twitch { get; set; }
         public List<string>? CustomDomains { get; set; }
-        public bool IncludeCloudflare { get; set; } = true;
-        public int MaxRoutes { get; set; } = 200;
+        public bool? IncludeCloudflare { get; set; }
+        public int MaxRoutes { get; set; } = SplitRoutingSettings.DefaultMaxRoutes;
 
-        public SplitRoutingSettings ToDomain() =>
-            new(
+        public SplitRoutingSettings ToDomain()
+        {
+            var defaults = SplitRoutingSettings.CreateDefault();
+            return new SplitRoutingSettings(
                 Enabled,
                 Youtube,
                 Telegram,
                 Twitch,
                 CustomDomains ?? [],
-                IncludeCloudflare,
-                MaxRoutes);
+                IncludeCloudflare ?? defaults.IncludeCloudflare,
+                MaxRoutes).Normalize();
+        }
 
         public static SplitRoutingFile FromDomain(SplitRoutingSettings settings) =>
             new()

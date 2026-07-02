@@ -19,8 +19,7 @@ public class ImportProfileHandlerTests
 
         try
         {
-            var store = new JsonProfileStore(Path.Combine(tempDir, "data"));
-            var handler = CreateHandler(store, new AlwaysUnavailableProbe());
+            var handler = CreateHandler(new AlwaysUnavailableProbe());
 
             var result = await handler.HandleAsync(
                 new ImportProfileRequestDto(configPath, BackendKind.Nmcli));
@@ -44,8 +43,8 @@ public class ImportProfileHandlerTests
 
         try
         {
-            var store = new JsonProfileStore(Path.Combine(tempDir, "data"));
-            var handler = CreateHandler(store, new AlwaysAvailableProbe());
+            var store = new JsonProfileStore(Path.Combine(tempDir, "data"), NullLogger<JsonProfileStore>.Instance);
+            var handler = CreateHandler(new AlwaysAvailableProbe(), store);
 
             var result = await handler.HandleAsync(
                 new ImportProfileRequestDto(configPath, BackendKind.Nmcli));
@@ -65,15 +64,46 @@ public class ImportProfileHandlerTests
         }
     }
 
+    [Fact]
+    public async Task HandleAsync_Native_UsesInterfaceNameAsConnection()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wg-gui-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var configPath = Path.Combine(tempDir, "myvpn.conf");
+        await File.WriteAllTextAsync(configPath, SampleConfigWithName);
+
+        try
+        {
+            var store = new JsonProfileStore(Path.Combine(tempDir, "data"), NullLogger<JsonProfileStore>.Instance);
+            var handler = CreateHandler(new AlwaysAvailableProbe(), store);
+
+            var result = await handler.HandleAsync(
+                new ImportProfileRequestDto(configPath, BackendKind.Native));
+
+            Assert.True(result.Success);
+            var profile = await store.GetProfileAsync(result.ProfileId!);
+            Assert.Equal("wg-office", profile!.ConnectionName);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static ImportProfileHandler CreateHandler(
-        JsonProfileStore store,
-        WireguardGui.Application.Abstractions.ISystemCapabilityProbe probe) =>
-        new(
+        WireguardGui.Application.Abstractions.ISystemCapabilityProbe probe,
+        JsonProfileStore? store = null)
+    {
+        store ??= new JsonProfileStore(
+            Path.Combine(Path.GetTempPath(), "wg-gui-" + Guid.NewGuid().ToString("N")),
+            NullLogger<JsonProfileStore>.Instance);
+        var importer = new ProfileImporter(
             store,
             new WireGuardConfigValidator(),
             new WireGuardConfigParser(),
-            probe,
-            NullLogger<ImportProfileHandler>.Instance);
+            NullLogger<ProfileImporter>.Instance);
+        return new ImportProfileHandler(probe, importer);
+    }
 
     private const string SampleConfig = """
         [Interface]

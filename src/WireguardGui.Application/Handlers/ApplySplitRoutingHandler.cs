@@ -3,6 +3,7 @@ using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Exceptions;
 using WireguardGui.Domain;
+using WireguardGui.Application.Services;
 
 namespace WireguardGui.Application.Handlers;
 
@@ -14,7 +15,7 @@ public sealed class ApplySplitRoutingHandler(
 {
     public async Task<SplitRoutingResultDto> HandleAsync(
         string profileId,
-        IProgress<string>? progress = null,
+        IProgress<SplitRoutingProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
@@ -29,7 +30,7 @@ public sealed class ApplySplitRoutingHandler(
         var backend = backendFactory.GetBackend(profile.Backend);
         var wasConnected = await backend.GetConnectionStateAsync(profile, cancellationToken) == ConnectionState.Connected;
         if (wasConnected)
-            progress?.Report("Progress_Reconnect_Required");
+            progress?.Report(new SplitRoutingProgress("Progress_Reconnect_Required"));
 
         var configUpdate = await splitRoutingConfigUpdater.TryUpdateConfigAsync(
             profile,
@@ -44,36 +45,34 @@ public sealed class ApplySplitRoutingHandler(
                 "Split routing {Profile}: config unchanged ({Count} routes)",
                 profile.Name,
                 configUpdate.RouteCount);
-            progress?.Report("Progress_Routes_Unchanged");
+            progress?.Report(new SplitRoutingProgress("Progress_Routes_Unchanged"));
             return new SplitRoutingResultDto(true, configUpdate.RouteCount, null, null);
         }
 
         if (!wasConnected)
         {
-            progress?.Report($"Progress_Routes_Written|{configUpdate.RouteCount}");
+            progress?.Report(new SplitRoutingProgress("Progress_Routes_Written", configUpdate.RouteCount.ToString()));
             return new SplitRoutingResultDto(true, configUpdate.RouteCount, configUpdate.RoutesCsv, null);
         }
 
-        progress?.Report("Progress_Reconnect_Nm");
+        progress?.Report(new SplitRoutingProgress("Progress_Reconnect_Nm"));
         logger.LogInformation("Split routing {Profile}: reconnecting after route update", profile.Name);
 
         try
         {
             await backend.ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
-            progress?.Report($"Progress_Done|{configUpdate.RouteCount}");
+            progress?.Report(new SplitRoutingProgress("Progress_Done", configUpdate.RouteCount.ToString()));
             return new SplitRoutingResultDto(true, configUpdate.RouteCount, configUpdate.RoutesCsv, null);
         }
         catch (WireGuardOperationException ex)
         {
             profile = await profileStore.GetProfileAsync(profileId, cancellationToken) ?? profile;
             var state = await backend.GetConnectionStateAsync(profile, cancellationToken);
-            if (state == ConnectionState.Connected)
-            {
-                progress?.Report($"Progress_Done|{configUpdate.RouteCount}");
-                return new SplitRoutingResultDto(true, configUpdate.RouteCount, configUpdate.RoutesCsv, null);
-            }
-
-            return new SplitRoutingResultDto(false, configUpdate.RouteCount, configUpdate.RoutesCsv, ex.UserMessage);
+            return ConnectionOutcomeResolver.ResolveSplitRoutingAfterFailure(
+                state,
+                configUpdate.RouteCount,
+                configUpdate.RoutesCsv,
+                ex.UserMessage);
         }
     }
 }

@@ -10,9 +10,6 @@ public sealed class NativeWireGuardBackend(
 {
     public BackendKind Kind => BackendKind.Native;
 
-    public Task ImportAsync(VpnProfile profile, string configPath, CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
-
     public async Task ConnectAsync(VpnProfile profile, CancellationToken cancellationToken = default)
     {
         var configPath = profileStore.GetConfigPath(profile);
@@ -45,16 +42,18 @@ public sealed class NativeWireGuardBackend(
         if (!result.IsSuccess)
             return ConnectionState.Unknown;
 
-        return result.StandardOutput.Contains(profile.ConnectionName, StringComparison.Ordinal)
-            ? ConnectionState.Connected
-            : ConnectionState.Disconnected;
-    }
+        foreach (var line in result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!line.StartsWith("interface:", StringComparison.OrdinalIgnoreCase))
+                continue;
 
-    public async Task ApplyRoutesAsync(
-        VpnProfile profile,
-        IReadOnlyList<string> routes,
-        CancellationToken cancellationToken = default) =>
-        await ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
+            var iface = line["interface:".Length..].Trim();
+            if (string.Equals(iface, profile.ConnectionName, StringComparison.Ordinal))
+                return ConnectionState.Connected;
+        }
+
+        return ConnectionState.Disconnected;
+    }
 
     public async Task ReimportFromConfigAsync(
         VpnProfile profile,

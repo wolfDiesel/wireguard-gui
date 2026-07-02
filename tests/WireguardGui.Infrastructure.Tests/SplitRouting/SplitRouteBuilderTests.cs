@@ -3,7 +3,8 @@ using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
 using WireguardGui.Infrastructure.SplitRouting;
 using WireguardGui.Infrastructure.SplitRouting.Sources;
-using WireguardGui.Infrastructure.System;
+using WireguardGui.Infrastructure.Storage;
+using WireguardGui.Infrastructure.Tests.Fakes;
 
 namespace WireguardGui.Infrastructure.Tests.SplitRouting;
 
@@ -101,7 +102,7 @@ public class SplitRouteBuilderTests
     }
 
     [Fact]
-    public async Task BuildRoutes_RespectsMaxRoutes()
+    public async Task BuildRoutes_RespectsMaxRoutes_PrefersStaticSources()
     {
         var builder = CreateBuilder(new FakeProcessRunner());
         var settings = new SplitRoutingSettings(
@@ -115,44 +116,21 @@ public class SplitRouteBuilderTests
 
         var routes = await builder.BuildRoutesAsync(settings);
         Assert.Equal(3, routes.Count);
+        Assert.Contains("149.154.160.0/20", routes);
     }
 
     private static SplitRouteBuilder CreateBuilder(FakeProcessRunner runner)
     {
         var dns = new DomainDnsResolver(runner);
+        var paths = new AppDataPaths();
         ISplitRouteSource[] sources =
         [
             new TelegramSplitRouteSource(),
             new CloudflareSplitRouteSource(),
             new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
             new TwitchSplitRouteSource(dns, NullLogger<TwitchSplitRouteSource>.Instance),
-            new YouTubeSplitRouteSource(new HttpClient(), NullLogger<YouTubeSplitRouteSource>.Instance),
+            new YouTubeSplitRouteSource(new HttpClient(), paths, NullLogger<YouTubeSplitRouteSource>.Instance),
         ];
         return new SplitRouteBuilder(sources, NullLogger<SplitRouteBuilder>.Instance);
-    }
-
-    internal sealed class FakeProcessRunner : IProcessRunner
-    {
-        public Dictionary<string, string> DigResponses { get; init; } = new();
-
-        public bool IsCommandAvailable(string command) => command is "dig" or "wg" or "wg-quick" or "nmcli";
-
-        public Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
-        {
-            if (fileName == "dig" && arguments.Count >= 3)
-            {
-                var domain = arguments[^1];
-                var output = DigResponses.GetValueOrDefault(domain, string.Empty);
-                return Task.FromResult(new ProcessResult(0, output, string.Empty));
-            }
-
-            return Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
-        }
-
-        public Task<ProcessResult> RunPrivilegedAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default) =>
-            RunAsync(fileName, arguments, cancellationToken);
-
-        public Task<ProcessResult> RunPrivilegedShellAsync(string script, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
     }
 }

@@ -13,9 +13,6 @@ public sealed class NmcliWireGuardBackend(
 {
     public BackendKind Kind => BackendKind.Nmcli;
 
-    public Task ImportAsync(VpnProfile profile, string configPath, CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
-
     public async Task ConnectAsync(VpnProfile profile, CancellationToken cancellationToken = default)
     {
         var exists = await NmcliConnectionHelper.ExistsAsync(
@@ -112,12 +109,6 @@ public sealed class NmcliWireGuardBackend(
             ? ConnectionState.Connected
             : ConnectionState.Disconnected;
     }
-
-    public Task ApplyRoutesAsync(
-        VpnProfile profile,
-        IReadOnlyList<string> routes,
-        CancellationToken cancellationToken = default) =>
-        ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
 
     public async Task ReimportFromConfigAsync(
         VpnProfile profile,

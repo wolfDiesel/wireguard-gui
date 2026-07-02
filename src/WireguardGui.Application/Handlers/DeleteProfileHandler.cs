@@ -15,9 +15,10 @@ public sealed class DeleteProfileHandler(
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
-            return new OperationResultDto(false, "Profile not found");
+            return new OperationResultDto(false, OperationErrorCode.ProfileNotFound, "Profile not found");
 
         var backend = backendFactory.GetBackend(profile.Backend);
+        string? warning = null;
 
         try
         {
@@ -28,11 +29,11 @@ public sealed class DeleteProfileHandler(
         catch (Exceptions.WireGuardOperationException ex)
         {
             logger.LogWarning(ex, "Error disconnecting/unregistering {Name} from system", profile.Name);
-            return new OperationResultDto(false, ex.UserMessage);
+            warning = ex.UserMessage;
         }
 
         await profileStore.DeleteProfileAsync(profileId, cancellationToken);
         logger.LogInformation("Profile {Name} deleted", profile.Name);
-        return new OperationResultDto(true, null);
+        return new OperationResultDto(true, OperationErrorCode.None, null, warning);
     }
 }

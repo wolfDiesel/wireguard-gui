@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] - 2026-07-01
+
+### Added
+
+- Localized operation errors: `OperationErrorCode`, `OperationErrorMapper`, and `Error_*` keys (7 languages).
+- UI hint when split routing removes DNS from profile config (`Profiles_Split_Hint_DnsRemoved`).
+- `GetProfileSplitRoutingHandler` — split routing settings loaded via application layer, not from ViewModels.
+- `SplitRoutingPanelViewModel` and `ProfileListSynchronizer` — slimmer `ProfilesViewModel`.
+- Typed `SplitRoutingProgress` for apply-routes progress (replaces pipe-delimited string protocol).
+- `IProfileImporter`, `IAppDataPaths`, `ConnectionOutcomeResolver`, `VpnProfileNaming` validation.
+- Parallel split-route source collection with bounded DNS resolve; deterministic route truncation by source priority.
+- Unit tests expanded to 46 (handlers, backends, store migration, config parser edge cases).
+
+### Changed
+
+- `ConnectProfileHandler` skips backend reimport when split-routing config is unchanged.
+- `JsonProfileStore` read path has no side effects; profile migration runs on save/list only.
+- `DeleteProfileHandler` best-effort: removes profile files even if NetworkManager unregister fails.
+- Native backend parses `wg show` by exact `interface:` column match.
+- Handlers registered as singletons; debug logging enabled only in `#if DEBUG` builds.
+- Removed unused torrent launch dead code and unused `IWireGuardBackend.ImportAsync` / `ApplyRoutesAsync`.
+
+### Fixed
+
+- Legacy profiles without `IncludeCloudflare` in JSON default to `false` on load.
+- `SplitRoutingSettings.Normalize()` clamps `MaxRoutes` and deduplicates custom domains.
+
 ## [1.1.0] - 2026-07-01
 
 ### Added
