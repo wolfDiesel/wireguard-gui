@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.App.Avalonia.Services;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Handlers;
 using WireguardGui.Domain;
@@ -18,6 +19,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     private readonly HandlerInvoker _invoker;
     private readonly AppToastService _toast;
     private readonly StatusBarService _statusBar;
+    private readonly ISplitRoutingRefreshScheduler _refreshScheduler;
     private DispatcherTimer? _pollTimer;
     private bool _refreshing;
 
@@ -66,6 +68,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         AppToastService toast,
         StatusBarService statusBar,
         SplitRoutingPanelViewModel splitRouting,
+        ISplitRoutingRefreshScheduler refreshScheduler,
         LocalizationService localization)
         : base(localization)
     {
@@ -73,6 +76,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         _toast = toast;
         _statusBar = statusBar;
         SplitRouting = splitRouting;
+        _refreshScheduler = refreshScheduler;
     }
 
     public async Task InitializeAsync()
@@ -84,6 +88,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
     public void StopPolling()
     {
+        _refreshScheduler.Stop();
         if (_pollTimer is null)
             return;
 
@@ -195,6 +200,8 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             _toast.ShowSuccess(T("Toast_Connect_Success"), row.Name);
         row.State = ConnectionState.Connected;
         OnSelectedProfileActionsChanged();
+        if (row.SplitRoutingEnabled)
+            _refreshScheduler.NotifyProfileConnected(row.Id);
         await PollProfileStatesAsync();
     }
 
@@ -219,6 +226,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
         _toast.ShowSuccess(T("Toast_Disconnect_Success"), row.Name);
         row.State = ConnectionState.Disconnected;
+        _refreshScheduler.NotifyProfileDisconnected(row.Id);
         OnSelectedProfileActionsChanged();
         await PollProfileStatesAsync();
     }

@@ -38,7 +38,7 @@
   "Profiles_Split_Domains": "ドメイン（1行に1つ）",
   "Profiles_Split_Apply": "ルートを適用",
   "Profiles_Split_Hint_Cloudflare": "ルートは設定の AllowedIPs に書き込まれます。Cloudflare は Cloudflare CDN 配下のすべてのサイト（lostfilm など）をカバーし、ドメインがリストになくても対象です。",
-  "Profiles_Split_Hint_Twitch": "Twitch ドメインは適用時に DNS で解決されます。動的 HLS エッジホストは含まれない場合があります。再適用するか、下にドメインを追加してください。",
+  "Profiles_Split_Hint_Twitch": "Twitch シードは DNS で解決され、接続/適用時および接続中は 10 分ごとに更新されます。任意のチャンネルで usher 経由の playlist/HLS ホストを検出します。",
   "Profiles_Split_Hint_DnsRemoved": "ルート適用時に WireGuard 設定から DNS が削除されます（スプリットルーティングポリシー）。",
   "Profiles_Split_Hint_Reconnect": "接続中にルートを適用すると VPN が再接続されます。",
   "Profiles_Split_Syncing": "ルートを同期中…",
@@ -116,5 +116,9 @@
   "Tray_Show": "表示",
   "Tray_Connect": "接続",
   "Tray_Disconnect": "切断",
-  "Tray_Quit": "終了"
+  "Tray_Quit": "終了",
+  "Profiles_Split_TwitchChannel": "Twitch チャンネル（HLS 検出用）",
+  "Progress_Routes_Twitch_Discover": "{0} の Twitch ストリームホストを検出中…",
+  "Toast_Routes_Refreshed": "ルートを更新しました",
+  "Toast_Routes_Refreshed_Detail": "{0} 件のルートを更新"
 }

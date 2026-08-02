@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-08-02
+
+### Added
+
+- Twitch playlist/CDN seed hosts and optional channel field for HLS discovery via GQL + usher.
+- Background split-routing refresh every 10 minutes while connected (reconnect only when AllowedIPs change).
+- `TwitchStreamHostCache` persists discovered stream hosts between applies.
+- Localization for Twitch channel / refresh toasts (7 languages).
+
+### Changed
+
+- Twitch domain normalizer skips known NXDOMAIN parents (`abs.hls.ttvnw.net`, `live-video.net`, …).
+- Twitch route collection digs curated seeds plus cached/discovered stream hostnames.
+
+### Fixed
+
+- Stale CloudFront/Fastly `/32` routes after Twitch CDN IP rotation (refresh on connect/apply/timer).
+
 ## [1.2.0] - 2026-07-01
 
 ### Added

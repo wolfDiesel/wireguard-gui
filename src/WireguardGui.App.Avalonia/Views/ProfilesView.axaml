@@ -112,6 +112,9 @@
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <CheckBox Content="{Binding SplitTwitchLabel}" IsChecked="{Binding SplitTwitch}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
+              <TextBlock Classes="field-label" Text="{Binding SplitTwitchChannelLabel}" />
+              <TextBox Text="{Binding TwitchChannel}" PlaceholderText="channel"
+                       IsEnabled="{Binding TwitchChannelEnabled}" />
               <CheckBox Content="{Binding SplitCloudflareLabel}" IsChecked="{Binding SplitCloudflare}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <TextBlock Classes="field-label" Text="{Binding SplitDomainsLabel}" />

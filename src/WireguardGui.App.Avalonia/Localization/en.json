@@ -38,7 +38,7 @@
   "Profiles_Split_Domains": "Domains (one per line)",
   "Profiles_Split_Apply": "Apply routes",
   "Profiles_Split_Hint_Cloudflare": "Routes are written to AllowedIPs in the config. Cloudflare covers all sites behind Cloudflare CDN (e.g. lostfilm), even if the domain is not listed.",
-  "Profiles_Split_Hint_Twitch": "Twitch domains are resolved via DNS at apply time. Dynamic HLS edge hosts may be missing; re-apply routes or add a specific domain below if playback fails.",
+  "Profiles_Split_Hint_Twitch": "Twitch seeds are resolved via DNS; routes refresh on connect/apply and every 10 minutes while connected. Optional channel discovers live playlist/HLS hosts via usher.",
   "Profiles_Split_Hint_DnsRemoved": "Applying routes removes DNS from the WireGuard config (split routing policy).",
   "Profiles_Split_Hint_Reconnect": "While connected, applying routes will reconnect the VPN.",
   "Profiles_Split_Syncing": "Syncing routes…",
@@ -116,5 +116,9 @@
   "Tray_Show": "Show",
   "Tray_Connect": "Connect",
   "Tray_Disconnect": "Disconnect",
-  "Tray_Quit": "Quit"
+  "Tray_Quit": "Quit",
+  "Profiles_Split_TwitchChannel": "Twitch channel (for HLS discovery)",
+  "Progress_Routes_Twitch_Discover": "Discovering Twitch stream hosts for {0}…",
+  "Toast_Routes_Refreshed": "Routes refreshed",
+  "Toast_Routes_Refreshed_Detail": "Updated {0} routes"
 }

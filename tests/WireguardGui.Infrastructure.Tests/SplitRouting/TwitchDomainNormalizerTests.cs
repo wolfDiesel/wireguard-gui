@@ -19,4 +19,23 @@ public class TwitchDomainNormalizerTests
         Assert.Contains("twitch.tv", result);
         Assert.Contains("www.twitch.tv", result);
     }
+
+    [Fact]
+    public void Normalize_SkipsKnownNonResolvableParents()
+    {
+        var result = TwitchDomainNormalizer.Normalize(
+        [
+            "usher.ttvnw.net",
+            "*.abs.hls.ttvnw.net",
+            "*.live-video.net",
+            "*.j.cloudfront.hls.ttvnw.net",
+            "eun11.playlist.ttvnw.net",
+        ]);
+
+        Assert.Contains("usher.ttvnw.net", result);
+        Assert.Contains("eun11.playlist.ttvnw.net", result);
+        Assert.DoesNotContain("abs.hls.ttvnw.net", result);
+        Assert.DoesNotContain("live-video.net", result);
+        Assert.DoesNotContain("j.cloudfront.hls.ttvnw.net", result);
+    }
 }

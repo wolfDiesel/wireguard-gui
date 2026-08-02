@@ -38,7 +38,7 @@
   "Profiles_Split_Domains": "域名（每行一个）",
   "Profiles_Split_Apply": "应用路由",
   "Profiles_Split_Hint_Cloudflare": "路由写入配置文件的 AllowedIPs。Cloudflare 覆盖所有使用 Cloudflare CDN 的网站（如 lostfilm），即使域名未列出。",
-  "Profiles_Split_Hint_Twitch": "Twitch 域名在应用时通过 DNS 解析。动态 HLS 边缘节点可能缺失；请重新应用路由或在下方添加域名。",
+  "Profiles_Split_Hint_Twitch": "Twitch 种子域名通过 DNS 解析；在连接/应用时以及连接期间每 10 分钟刷新路由。可选频道可通过 usher 发现 playlist/HLS 主机。",
   "Profiles_Split_Hint_DnsRemoved": "应用路由时会从 WireGuard 配置中移除 DNS（分流路由策略）。",
   "Profiles_Split_Hint_Reconnect": "已连接时应用路由将重新连接 VPN。",
   "Profiles_Split_Syncing": "正在同步路由…",
@@ -116,5 +116,9 @@
   "Tray_Show": "显示",
   "Tray_Connect": "连接",
   "Tray_Disconnect": "断开",
-  "Tray_Quit": "退出"
+  "Tray_Quit": "退出",
+  "Profiles_Split_TwitchChannel": "Twitch 频道（用于 HLS 发现）",
+  "Progress_Routes_Twitch_Discover": "正在为 {0} 发现 Twitch 流主机…",
+  "Toast_Routes_Refreshed": "路由已刷新",
+  "Toast_Routes_Refreshed_Detail": "已更新 {0} 条路由"
 }

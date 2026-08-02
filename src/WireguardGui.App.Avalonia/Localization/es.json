@@ -38,7 +38,7 @@
   "Profiles_Split_Domains": "Dominios (uno por línea)",
   "Profiles_Split_Apply": "Aplicar rutas",
   "Profiles_Split_Hint_Cloudflare": "Las rutas se escriben en AllowedIPs del config. Cloudflare cubre todos los sitios detrás del CDN de Cloudflare (p. ej. lostfilm), aunque el dominio no esté en la lista.",
-  "Profiles_Split_Hint_Twitch": "Los dominios de Twitch se resuelven por DNS al aplicar. Los hosts HLS dinámicos pueden faltar; vuelva a aplicar rutas o añada un dominio abajo.",
+  "Profiles_Split_Hint_Twitch": "Las semillas de Twitch se resuelven por DNS; las rutas se actualizan al conectar/aplicar y cada 10 minutos. Un canal opcional descubre hosts playlist/HLS vía usher.",
   "Profiles_Split_Hint_DnsRemoved": "Al aplicar rutas se elimina DNS del config WireGuard (política de enrutamiento dividido).",
   "Profiles_Split_Hint_Reconnect": "Si está conectado, aplicar rutas reconectará la VPN.",
   "Profiles_Split_Syncing": "Sincronizando rutas…",
@@ -116,5 +116,9 @@
   "Tray_Show": "Mostrar",
   "Tray_Connect": "Conectar",
   "Tray_Disconnect": "Desconectar",
-  "Tray_Quit": "Salir"
+  "Tray_Quit": "Salir",
+  "Profiles_Split_TwitchChannel": "Canal de Twitch (descubrimiento HLS)",
+  "Progress_Routes_Twitch_Discover": "Descubriendo hosts de Twitch para {0}…",
+  "Toast_Routes_Refreshed": "Rutas actualizadas",
+  "Toast_Routes_Refreshed_Detail": "Se actualizaron {0} rutas"
 }

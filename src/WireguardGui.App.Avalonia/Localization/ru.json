@@ -38,7 +38,7 @@
   "Profiles_Split_Domains": "Домены (по строке)",
   "Profiles_Split_Apply": "Применить маршруты",
   "Profiles_Split_Hint_Cloudflare": "Маршруты пишутся в AllowedIPs конфига. Cloudflare — все сайты за CDN Cloudflare (в т.ч. lostfilm), даже если домена нет в списке.",
-  "Profiles_Split_Hint_Twitch": "Домены Twitch резолвятся через DNS при применении. Динамические HLS-edge могут не попасть в маршруты; повторите применение или добавьте домен ниже.",
+  "Profiles_Split_Hint_Twitch": "Сиды Twitch резолвятся через DNS; маршруты обновляются при connect/apply и каждые 10 минут, пока VPN подключён. Опциональный канал находит playlist/HLS host’ы через usher.",
   "Profiles_Split_Hint_DnsRemoved": "При применении маршрутов DNS удаляется из конфига WireGuard (политика split routing).",
   "Profiles_Split_Hint_Reconnect": "При применении маршрутов во время подключения соединение будет переподключено.",
   "Profiles_Split_Syncing": "Синхронизация маршрутов…",
@@ -116,5 +116,9 @@
   "Tray_Show": "Показать",
   "Tray_Connect": "Подключить",
   "Tray_Disconnect": "Отключить",
-  "Tray_Quit": "Выход"
+  "Tray_Quit": "Выход",
+  "Profiles_Split_TwitchChannel": "Канал Twitch (для HLS discovery)",
+  "Progress_Routes_Twitch_Discover": "Поиск Twitch stream host’ов для {0}…",
+  "Toast_Routes_Refreshed": "Маршруты обновлены",
+  "Toast_Routes_Refreshed_Detail": "Обновлено маршрутов: {0}"
 }

@@ -139,4 +139,59 @@ public class SplitRoutingConfigUpdaterTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task TryUpdateConfig_Changed_WhenCustomDomainIpsAppear()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "wg-updater2-" + Guid.NewGuid().ToString("N"));
+        var store = TestStoreFactory.Create(root);
+        var profile = VpnProfile.Create("test", BackendKind.Native, "test") with
+        {
+            SplitRouting = new SplitRoutingSettings(true, false, true, false, [], false, 200),
+        };
+
+        Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));
+        await File.WriteAllTextAsync(store.GetConfigPath(profile), """
+            [Interface]
+            PrivateKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
+            [Peer]
+            PublicKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
+            AllowedIPs = 149.154.160.0/20,91.108.4.0/22,91.108.8.0/22,91.108.16.0/22,91.108.56.0/22,91.105.192.0/23,95.161.64.0/20,185.76.151.0/24
+            """);
+
+        try
+        {
+            var runner = new FakeProcessRunner
+            {
+                DigResponses = new Dictionary<string, string> { ["example.com"] = "93.184.216.34\n" },
+            };
+            var dns = new DomainDnsResolver(runner);
+            var builder = new SplitRouteBuilder(
+                [
+                    new TelegramSplitRouteSource(),
+                    new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
+                ],
+                NullLogger<SplitRouteBuilder>.Instance);
+            var updater = new SplitRoutingConfigUpdater(
+                store,
+                builder,
+                new WireGuardConfigParser(),
+                NullLogger<SplitRoutingConfigUpdater>.Instance);
+
+            var unchanged = await updater.TryUpdateConfigAsync(profile);
+            Assert.False(unchanged.Changed);
+
+            var withDomain = profile with
+            {
+                SplitRouting = new SplitRoutingSettings(true, false, true, false, ["example.com"], false, 200),
+            };
+            var changed = await updater.TryUpdateConfigAsync(withDomain);
+            Assert.True(changed.Changed);
+            Assert.Contains("93.184.216.34/32", changed.RoutesCsv!);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

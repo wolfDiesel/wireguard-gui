@@ -7,7 +7,8 @@ public sealed record SplitRoutingSettings(
     bool Twitch,
     IReadOnlyList<string> CustomDomains,
     bool IncludeCloudflare,
-    int MaxRoutes)
+    int MaxRoutes,
+    string? TwitchChannel = null)
 {
     public const int DefaultMaxRoutes = 200;
     public const int MinMaxRoutes = 1;
@@ -21,7 +22,8 @@ public sealed record SplitRoutingSettings(
             Twitch: false,
             CustomDomains: [],
             IncludeCloudflare: false,
-            MaxRoutes: DefaultMaxRoutes);
+            MaxRoutes: DefaultMaxRoutes,
+            TwitchChannel: null);
 
     public SplitRoutingSettings Normalize()
     {
@@ -36,9 +38,13 @@ public sealed record SplitRoutingSettings(
         {
             MaxRoutes = maxRoutes,
             CustomDomains = domains,
+            TwitchChannel = TwitchChannelNaming.Normalize(TwitchChannel),
         };
     }
 
     public bool HasAnySourceEnabled =>
         Youtube || Telegram || Twitch || IncludeCloudflare || CustomDomains.Count > 0;
+
+    public bool NeedsDnsRouteRefresh =>
+        Enabled && (Twitch || CustomDomains.Count > 0);
 }

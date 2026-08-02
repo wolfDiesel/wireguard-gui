@@ -12,8 +12,11 @@ internal static partial class TwitchDomainNormalizer
         foreach (var raw in rawDomains)
         {
             var normalized = NormalizeOne(raw);
-            if (normalized is not null)
-                result.Add(normalized);
+            if (normalized is null)
+                continue;
+            if (SplitRoutingConstants.TwitchNonResolvableParents.Contains(normalized))
+                continue;
+            result.Add(normalized);
         }
 
         return result.OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToList();

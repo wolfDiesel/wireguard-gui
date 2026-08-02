@@ -18,7 +18,14 @@ public static class DependencyInjection
         services.AddSingleton<ISplitRouteSource, TelegramSplitRouteSource>();
         services.AddSingleton<ISplitRouteSource, CloudflareSplitRouteSource>();
         services.AddSingleton<ISplitRouteSource, CustomDomainsSplitRouteSource>();
-        services.AddSingleton<ISplitRouteSource, TwitchSplitRouteSource>();
+        services.AddSingleton<TwitchStreamHostCache>();
+        services.AddHttpClient<TwitchStreamHostDiscoverer>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("WireguardGui/1.2");
+        });
+        services.AddSingleton<TwitchSplitRouteSource>();
+        services.AddSingleton<ISplitRouteSource>(sp => sp.GetRequiredService<TwitchSplitRouteSource>());
         services.AddHttpClient<YouTubeSplitRouteSource>(client =>
             client.Timeout = TimeSpan.FromSeconds(30));
         services.AddSingleton<ISplitRouteSource>(sp => sp.GetRequiredService<YouTubeSplitRouteSource>());

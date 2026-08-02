@@ -25,19 +25,34 @@ public static class SplitRoutingConstants
 
     public static readonly IReadOnlyList<string> TwitchDomains =
     [
-        "twitch.tv",
-        "www.twitch.tv",
-        "ttvnw.net",
-        "jtvnw.net",
-        "twitchcdn.net",
-        "live-video.net",
-        "ext-twitch.tv",
-        "passport.twitch.tv",
-        "gql.twitch.tv",
-        "id.twitch.tv",
         "usher.ttvnw.net",
+        "gql.twitch.tv",
         "vod-secure.twitch.tv",
-        "d1m7jfoe9zdc1j.cloudfront.net",
-        "abs.hls.ttvnw.net",
+        "static.twitchcdn.net",
+        "www.twitch.tv",
+        "assets.twitch.tv",
+        "pubsub-edge.twitch.tv",
+        "jtvnw.twitchcdn.net",
+        "eun1.playlist.ttvnw.net",
+        "eun2.playlist.ttvnw.net",
+        "eun11.playlist.ttvnw.net",
+        "eun13.playlist.ttvnw.net",
+        "euw1.playlist.ttvnw.net",
+        "euw2.playlist.ttvnw.net",
+        "euw3.playlist.ttvnw.net",
+        "euw4.playlist.ttvnw.net",
+        "*.abs.hls.ttvnw.net",
+        "*.j.cloudfront.hls.ttvnw.net",
+        "*.live-video.net",
     ];
+
+    public static readonly IReadOnlySet<string> TwitchNonResolvableParents =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "abs.hls.ttvnw.net",
+            "j.cloudfront.hls.ttvnw.net",
+            "live-video.net",
+            "ttvnw.net",
+            "jtvnw.net",
+        };
 }

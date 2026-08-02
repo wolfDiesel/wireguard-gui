@@ -60,7 +60,8 @@ public class SplitRouteBuilderTests
         {
             DigResponses = new Dictionary<string, string>
             {
-                ["twitch.tv"] = "151.101.1.11\n",
+                ["usher.ttvnw.net"] = "151.101.1.11\n",
+                ["gql.twitch.tv"] = "151.101.66.167\n",
             },
         };
         var builder = CreateBuilder(runner);
@@ -75,6 +76,7 @@ public class SplitRouteBuilderTests
 
         var routes = await builder.BuildRoutesAsync(settings);
         Assert.Contains("151.101.1.11/32", routes);
+        Assert.Contains("151.101.66.167/32", routes);
     }
 
     [Fact]
@@ -84,7 +86,7 @@ public class SplitRouteBuilderTests
         {
             DigResponses = new Dictionary<string, string>
             {
-                ["twitch.tv"] = "151.101.1.11\n",
+                ["usher.ttvnw.net"] = "151.101.1.11\n",
             },
         };
         var builder = CreateBuilder(runner);
@@ -123,12 +125,16 @@ public class SplitRouteBuilderTests
     {
         var dns = new DomainDnsResolver(runner);
         var paths = new AppDataPaths();
+        var cache = new TwitchStreamHostCache(paths);
+        var discoverer = new TwitchStreamHostDiscoverer(
+            new HttpClient(),
+            NullLogger<TwitchStreamHostDiscoverer>.Instance);
         ISplitRouteSource[] sources =
         [
             new TelegramSplitRouteSource(),
             new CloudflareSplitRouteSource(),
             new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
-            new TwitchSplitRouteSource(dns, NullLogger<TwitchSplitRouteSource>.Instance),
+            new TwitchSplitRouteSource(dns, discoverer, cache, NullLogger<TwitchSplitRouteSource>.Instance),
             new YouTubeSplitRouteSource(new HttpClient(), paths, NullLogger<YouTubeSplitRouteSource>.Instance),
         ];
         return new SplitRouteBuilder(sources, NullLogger<SplitRouteBuilder>.Instance);

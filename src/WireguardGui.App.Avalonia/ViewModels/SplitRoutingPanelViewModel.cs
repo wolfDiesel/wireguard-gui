@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.App.Avalonia.Services;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Handlers;
 using WireguardGui.Domain;
@@ -15,6 +16,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     private readonly HandlerInvoker _invoker;
     private readonly AppToastService _toast;
     private readonly StatusBarService _statusBar;
+    private readonly ISplitRoutingRefreshScheduler _refreshScheduler;
     private bool _applyInProgress;
     private bool _loading;
     private string? _loadedProfileId;
@@ -39,6 +41,9 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     private bool _splitCloudflare;
 
     [ObservableProperty]
+    private string _twitchChannel = string.Empty;
+
+    [ObservableProperty]
     private string _customDomainsText = string.Empty;
 
     [ObservableProperty]
@@ -55,6 +60,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     public string SplitYoutubeLabel => T("Profiles_Split_Youtube");
     public string SplitTelegramLabel => T("Profiles_Split_Telegram");
     public string SplitTwitchLabel => T("Profiles_Split_Twitch");
+    public string SplitTwitchChannelLabel => T("Profiles_Split_TwitchChannel");
     public string SplitCloudflareLabel => T("Profiles_Split_Cloudflare");
     public string SplitDomainsLabel => T("Profiles_Split_Domains");
     public string SplitApplyLabel => T("Profiles_Split_Apply");
@@ -69,16 +75,20 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     public bool ShowReconnectHint =>
         _selectedProfile is { IsConnected: true } && SplitRoutingEnabled;
 
+    public bool TwitchChannelEnabled => SplitRoutingOptionsEnabled && SplitTwitch;
+
     public SplitRoutingPanelViewModel(
         HandlerInvoker invoker,
         AppToastService toast,
         StatusBarService statusBar,
+        ISplitRoutingRefreshScheduler refreshScheduler,
         LocalizationService localization)
         : base(localization)
     {
         _invoker = invoker;
         _toast = toast;
         _statusBar = statusBar;
+        _refreshScheduler = refreshScheduler;
     }
 
     public void BindSelectedProfile(ProfileRowViewModel? profile)
@@ -108,6 +118,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         _applyInProgress = true;
         IsApplyingRoutes = true;
         ApplyRoutesStatus = T("Progress_Preparing");
+        using var _ = _refreshScheduler.BeginManualApply();
         try
         {
             if (!await PersistFromUiAsync())
@@ -146,7 +157,11 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
                 _toast.ShowInfo(T("Toast_Routes_Limit"), T("Toast_Routes_Limit_Detail"));
 
             if (_selectedProfile is not null)
+            {
                 _selectedProfile.State = ConnectionState.Connected;
+                if (_selectedProfile.SplitRoutingEnabled)
+                    _refreshScheduler.NotifyProfileConnected(_selectedProfile.Id);
+            }
         }
         finally
         {
@@ -160,13 +175,19 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     partial void OnSplitRoutingEnabledChanged(bool value)
     {
         OnPropertyChanged(nameof(SplitRoutingOptionsEnabled));
+        OnPropertyChanged(nameof(TwitchChannelEnabled));
         OnEdited();
     }
 
     partial void OnSplitYoutubeChanged(bool value) => OnEdited();
     partial void OnSplitTelegramChanged(bool value) => OnEdited();
-    partial void OnSplitTwitchChanged(bool value) => OnEdited();
+    partial void OnSplitTwitchChanged(bool value)
+    {
+        OnPropertyChanged(nameof(TwitchChannelEnabled));
+        OnEdited();
+    }
     partial void OnSplitCloudflareChanged(bool value) => OnEdited();
+    partial void OnTwitchChannelChanged(string value) => OnEdited();
     partial void OnCustomDomainsTextChanged(string value) => OnEdited();
 
     private async Task LoadAsync(ProfileRowViewModel? row)
@@ -189,6 +210,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             SplitTelegram = settings.Telegram;
             SplitTwitch = settings.Twitch;
             SplitCloudflare = settings.IncludeCloudflare;
+            TwitchChannel = settings.TwitchChannel ?? string.Empty;
             CustomDomainsText = string.Join('\n', settings.CustomDomains);
             _saved = settings;
             UpdateDirtyState();
@@ -239,7 +261,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             SplitTwitch,
             domains,
             SplitCloudflare,
-            SplitRoutingSettings.DefaultMaxRoutes).Normalize();
+            SplitRoutingSettings.DefaultMaxRoutes,
+            TwitchChannel).Normalize();
     }
 
     private void CaptureSavedFromUi()
@@ -270,6 +293,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         && left.Twitch == right.Twitch
         && left.IncludeCloudflare == right.IncludeCloudflare
         && left.MaxRoutes == right.MaxRoutes
+        && string.Equals(left.TwitchChannel, right.TwitchChannel, StringComparison.OrdinalIgnoreCase)
         && left.CustomDomains.SequenceEqual(right.CustomDomains, StringComparer.OrdinalIgnoreCase);
 
     protected override void OnLocalizationChanged() =>
@@ -279,6 +303,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             nameof(SplitYoutubeLabel),
             nameof(SplitTelegramLabel),
             nameof(SplitTwitchLabel),
+            nameof(SplitTwitchChannelLabel),
             nameof(SplitCloudflareLabel),
             nameof(SplitDomainsLabel),
             nameof(SplitApplyLabel),

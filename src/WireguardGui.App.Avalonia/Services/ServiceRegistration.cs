@@ -3,6 +3,7 @@ using WireguardGui.App.Avalonia.Converters;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.App.Avalonia.ViewModels;
 using WireguardGui.Application;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Infrastructure;
 
 namespace WireguardGui.App.Avalonia.Services;
@@ -19,6 +20,7 @@ internal static class ServiceRegistration
         services.AddSingleton<ThemeService>();
         services.AddSingleton<AppToastService>();
         services.AddSingleton<StatusBarService>();
+        services.AddSingleton<ISplitRoutingRefreshScheduler, SplitRoutingRefreshScheduler>();
         services.AddSingleton<SplitRoutingPanelViewModel>();
         services.AddSingleton<ProfilesViewModel>();
         services.AddSingleton<SettingsViewModel>();
