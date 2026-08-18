@@ -10,8 +10,6 @@ namespace WireguardGui.App.Avalonia.Services;
 
 internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshScheduler, IAsyncDisposable
 {
-    public static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(10);
-
     private readonly IServiceProvider _services;
     private readonly HandlerInvoker _invoker;
     private readonly AppToastService _toast;
@@ -24,6 +22,7 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
     private string? _watchedProfileId;
     private int _manualApplyDepth;
     private bool _disposed;
+    private TimeSpan _interval = TimeSpan.FromMinutes(AppSettings.DefaultRefreshMinutes);
 
     public SplitRoutingRefreshScheduler(
         IServiceProvider services,
@@ -37,6 +36,25 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         _toast = toast;
         _localization = localization;
         _logger = logger;
+        _ = LoadIntervalAsync();
+    }
+
+    public void ApplyRefreshInterval(int minutes)
+    {
+        var clamped = AppSettings.ClampRefreshMinutes(minutes);
+        lock (_gate)
+            _interval = TimeSpan.FromMinutes(clamped);
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            lock (_gate)
+            {
+                if (_timer is not null)
+                    _timer.Interval = _interval;
+            }
+        });
+
+        _logger.LogInformation("Split routing refresh interval set to {Minutes} minutes", clamped);
     }
 
     public void NotifyProfileConnected(string profileId)
@@ -47,8 +65,9 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         lock (_gate)
         {
             _watchedProfileId = profileId;
-            EnsureTimerLocked();
         }
+
+        _ = StartWatchingAsync(profileId);
 
         _logger.LogInformation("Split routing refresh watching profile {ProfileId}", profileId);
     }
@@ -97,12 +116,44 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         return ValueTask.CompletedTask;
     }
 
+    private async Task LoadIntervalAsync()
+    {
+        try
+        {
+            var settings = await _services.GetRequiredService<ISettingsStore>()
+                .LoadAsync()
+                .ConfigureAwait(false);
+            ApplyRefreshInterval(settings.SplitRoutingRefreshMinutes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load split routing refresh interval");
+        }
+    }
+
+    private async Task StartWatchingAsync(string profileId)
+    {
+        await LoadIntervalAsync().ConfigureAwait(false);
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            lock (_gate)
+            {
+                if (!string.Equals(_watchedProfileId, profileId, StringComparison.Ordinal))
+                    return;
+                EnsureTimerLocked();
+            }
+        });
+    }
+
     private void EnsureTimerLocked()
     {
         if (_timer is not null)
+        {
+            _timer.Interval = _interval;
             return;
+        }
 
-        _timer = new DispatcherTimer { Interval = RefreshInterval };
+        _timer = new DispatcherTimer { Interval = _interval };
         _timer.Tick += OnTick;
         _timer.Start();
     }

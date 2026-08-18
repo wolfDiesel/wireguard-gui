@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.1] - 2026-08-18
+
+### Added
+
+- Settings: DNS refresh interval for split routing (`splitRoutingRefreshMinutes` in `settings.json`, 1–120 minutes).
+
+### Fixed
+
+- Settings page scrolls when content does not fit the window.
+
 ## [1.3.0] - 2026-08-02
 
 ### Added

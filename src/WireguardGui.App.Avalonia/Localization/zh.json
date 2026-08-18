@@ -120,5 +120,7 @@
   "Profiles_Split_TwitchChannel": "Twitch 频道（用于 HLS 发现）",
   "Progress_Routes_Twitch_Discover": "正在为 {0} 发现 Twitch 流主机…",
   "Toast_Routes_Refreshed": "路由已刷新",
-  "Toast_Routes_Refreshed_Detail": "已更新 {0} 条路由"
+  "Toast_Routes_Refreshed_Detail": "已更新 {0} 条路由",
+  "Settings_SplitRouting": "分流路由",
+  "Settings_SplitRouting_Refresh": "DNS 刷新间隔（分钟）。连接期间会重新解析 Twitch 和自定义域名。"
 }

@@ -30,5 +30,5 @@ public sealed class GetSettingsHandler(ISettingsStore settingsStore)
 public sealed class SaveSettingsHandler(ISettingsStore settingsStore)
 {
     public Task HandleAsync(AppSettings settings, CancellationToken cancellationToken = default) =>
-        settingsStore.SaveAsync(settings, cancellationToken);
+        settingsStore.SaveAsync(settings.Normalize(), cancellationToken);
 }

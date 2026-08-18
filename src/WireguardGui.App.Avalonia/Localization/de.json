@@ -120,5 +120,7 @@
   "Profiles_Split_TwitchChannel": "Twitch-Kanal (für HLS-Erkennung)",
   "Progress_Routes_Twitch_Discover": "Twitch-Stream-Hosts für {0} werden ermittelt…",
   "Toast_Routes_Refreshed": "Routen aktualisiert",
-  "Toast_Routes_Refreshed_Detail": "{0} Routen aktualisiert"
+  "Toast_Routes_Refreshed_Detail": "{0} Routen aktualisiert",
+  "Settings_SplitRouting": "Split-Routing",
+  "Settings_SplitRouting_Refresh": "DNS-Aktualisierungsintervall (Minuten). Twitch-/eigene Domains werden bei bestehender Verbindung erneut aufgelöst."
 }

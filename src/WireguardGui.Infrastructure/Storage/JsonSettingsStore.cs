@@ -24,11 +24,11 @@ public sealed class JsonSettingsStore : ISettingsStore
     public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(_filePath))
-            return new AppSettings(UiSettings.CreateDefault());
+            return AppSettings.CreateDefault();
 
         await using var stream = File.OpenRead(_filePath);
         var file = await JsonSerializer.DeserializeAsync<SettingsFile>(stream, JsonOptions, cancellationToken);
-        return file?.ToDomain() ?? new AppSettings(UiSettings.CreateDefault());
+        return file?.ToDomain() ?? AppSettings.CreateDefault();
     }
 
     public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
@@ -38,18 +38,29 @@ public sealed class JsonSettingsStore : ISettingsStore
             Directory.CreateDirectory(directory);
 
         await using var stream = File.Create(_filePath);
-        await JsonSerializer.SerializeAsync(stream, SettingsFile.FromDomain(settings), JsonOptions, cancellationToken);
+        await JsonSerializer.SerializeAsync(
+            stream,
+            SettingsFile.FromDomain(settings.Normalize()),
+            JsonOptions,
+            cancellationToken);
     }
 
     private sealed class SettingsFile
     {
         public UiFile? Ui { get; set; }
+        public int? SplitRoutingRefreshMinutes { get; set; }
 
         public AppSettings ToDomain() =>
-            new(Ui?.ToDomain() ?? UiSettings.CreateDefault());
+            new AppSettings(
+                Ui?.ToDomain() ?? UiSettings.CreateDefault(),
+                SplitRoutingRefreshMinutes ?? AppSettings.DefaultRefreshMinutes).Normalize();
 
         public static SettingsFile FromDomain(AppSettings settings) =>
-            new() { Ui = UiFile.FromDomain(settings.Ui) };
+            new()
+            {
+                Ui = UiFile.FromDomain(settings.Ui),
+                SplitRoutingRefreshMinutes = settings.SplitRoutingRefreshMinutes,
+            };
     }
 
     private sealed class UiFile

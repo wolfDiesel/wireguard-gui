@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.App.Avalonia.Services;
 using WireguardGui.App.Avalonia.Theme;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Contracts;
 using WireguardGui.Application.Handlers;
 using WireguardGui.Domain;
@@ -38,6 +39,7 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
     private readonly HandlerInvoker _invoker;
     private readonly ThemeService _themeService;
     private readonly DesktopSessionBridge _desktopSession;
+    private readonly ISplitRoutingRefreshScheduler _refreshScheduler;
 
     [ObservableProperty]
     private string _selectedAppearance = UiAppearances.Dark;
@@ -57,6 +59,9 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
     [ObservableProperty]
     private bool _closeToTray = true;
 
+    [ObservableProperty]
+    private decimal _splitRoutingRefreshMinutes = AppSettings.DefaultRefreshMinutes;
+
     public ObservableCollection<LanguageOptionViewModel> Languages { get; } = new();
     public ObservableCollection<PaletteChipViewModel> ColorSchemes { get; } = new(
         AccentPalettes.All.Select(p => new PaletteChipViewModel(p.Id, p.Id, p.Primary)));
@@ -72,18 +77,22 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
     public string TrayMinimizeLabel => T("Settings_Tray_Minimize");
     public string TrayCloseLabel => T("Settings_Tray_Close");
     public string LanguageLabel => T("Settings_Language");
+    public string SplitRoutingLabel => T("Settings_SplitRouting");
+    public string SplitRoutingRefreshLabel => T("Settings_SplitRouting_Refresh");
     public string SaveLabel => T("Settings_Save");
 
     public SettingsViewModel(
         HandlerInvoker invoker,
         ThemeService themeService,
         DesktopSessionBridge desktopSession,
+        ISplitRoutingRefreshScheduler refreshScheduler,
         LocalizationService localization)
         : base(localization)
     {
         _invoker = invoker;
         _themeService = themeService;
         _desktopSession = desktopSession;
+        _refreshScheduler = refreshScheduler;
         RebuildLanguages();
     }
 
@@ -98,6 +107,7 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
         TrayEnabled = settings.Ui.TrayEnabled;
         MinimizeToTray = settings.Ui.MinimizeToTray;
         CloseToTray = settings.Ui.CloseToTray;
+        SplitRoutingRefreshMinutes = settings.SplitRoutingRefreshMinutes;
     }
 
     [RelayCommand]
@@ -139,10 +149,15 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
                 MinimizeToTray = MinimizeToTray,
                 CloseToTray = CloseToTray,
             },
+            SplitRoutingRefreshMinutes = decimal.ToInt32(SplitRoutingRefreshMinutes),
         };
 
         await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<SaveSettingsHandler>().HandleAsync(updated));
+
+        var clamped = AppSettings.ClampRefreshMinutes(decimal.ToInt32(SplitRoutingRefreshMinutes));
+        _refreshScheduler.ApplyRefreshInterval(clamped);
+        SplitRoutingRefreshMinutes = clamped;
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -176,6 +191,8 @@ internal sealed partial class SettingsViewModel : LocalizedViewModelBase
             nameof(TrayMinimizeLabel),
             nameof(TrayCloseLabel),
             nameof(LanguageLabel),
+            nameof(SplitRoutingLabel),
+            nameof(SplitRoutingRefreshLabel),
             nameof(SaveLabel));
     }
 

@@ -54,3 +54,16 @@ public class SplitRoutingSettingsTests
             .NeedsDnsRouteRefresh);
     }
 }
+
+public class AppSettingsTests
+{
+    [Theory]
+    [InlineData(0, 10)]
+    [InlineData(-3, 10)]
+    [InlineData(1, 1)]
+    [InlineData(10, 10)]
+    [InlineData(120, 120)]
+    [InlineData(121, 120)]
+    public void ClampRefreshMinutes(int input, int expected) =>
+        Assert.Equal(expected, AppSettings.ClampRefreshMinutes(input));
+}

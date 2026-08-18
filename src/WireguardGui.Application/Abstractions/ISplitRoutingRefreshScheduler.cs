@@ -9,4 +9,6 @@ public interface ISplitRoutingRefreshScheduler
     void Stop();
 
     IDisposable BeginManualApply();
+
+    void ApplyRefreshInterval(int minutes);
 }

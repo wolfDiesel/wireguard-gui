@@ -120,5 +120,7 @@
   "Profiles_Split_TwitchChannel": "Канал Twitch (для HLS discovery)",
   "Progress_Routes_Twitch_Discover": "Поиск Twitch stream host’ов для {0}…",
   "Toast_Routes_Refreshed": "Маршруты обновлены",
-  "Toast_Routes_Refreshed_Detail": "Обновлено маршрутов: {0}"
+  "Toast_Routes_Refreshed_Detail": "Обновлено маршрутов: {0}",
+  "Settings_SplitRouting": "Split routing",
+  "Settings_SplitRouting_Refresh": "Интервал обновления DNS (минуты). Повторный резолв доменов Twitch и своих, пока VPN подключён."
 }

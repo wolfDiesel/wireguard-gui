@@ -120,5 +120,7 @@
   "Profiles_Split_TwitchChannel": "Twitch チャンネル（HLS 検出用）",
   "Progress_Routes_Twitch_Discover": "{0} の Twitch ストリームホストを検出中…",
   "Toast_Routes_Refreshed": "ルートを更新しました",
-  "Toast_Routes_Refreshed_Detail": "{0} 件のルートを更新"
+  "Toast_Routes_Refreshed_Detail": "{0} 件のルートを更新",
+  "Settings_SplitRouting": "スプリットルーティング",
+  "Settings_SplitRouting_Refresh": "DNS 更新間隔（分）。接続中に Twitch / カスタムドメインを再解決します。"
 }
