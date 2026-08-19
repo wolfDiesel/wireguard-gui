@@ -15,9 +15,13 @@ public sealed record SplitRoutingConfigUpdateResult(
     bool Changed,
     int RouteCount,
     string? RoutesCsv,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    IReadOnlyList<string>? Routes = null,
+    bool UsesPolicyRouting = false);
 
 public static class SplitRoutingPolicy
 {
     public const bool RemoveDnsOnApply = true;
+    public const string PolicyAllowedIps = "0.0.0.0/0";
+    public const string PolicyTable = "off";
 }

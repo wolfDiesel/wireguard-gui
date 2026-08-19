@@ -131,7 +131,7 @@ public class SplitRouteBuilderTests
             NullLogger<TwitchStreamHostDiscoverer>.Instance);
         ISplitRouteSource[] sources =
         [
-            new TelegramSplitRouteSource(),
+            SplitRouteSourceTestFactory.CreateTelegramSource(runner),
             new CloudflareSplitRouteSource(),
             new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
             new TwitchSplitRouteSource(dns, discoverer, cache, NullLogger<TwitchSplitRouteSource>.Instance),

@@ -105,4 +105,34 @@ public class WireGuardConfigParserTests
         var config = "[Peer]\nAllowedIPs = 1.2.3.4/32\n";
         Assert.Equal("1.2.3.4/32", _parser.ReadAllowedIps(config));
     }
+
+    [Fact]
+    public void EnsurePolicySplitBaseline_SetsTableOffAndWideAllowedIps()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            DNS = 1.1.1.1
+            [Peer]
+            PublicKey = y
+            AllowedIPs = 10.0.0.0/8
+            Endpoint = vpn.example.com:51820
+            """;
+        var updated = _parser.EnsurePolicySplitBaseline(config);
+        Assert.Contains("Table = off", updated);
+        Assert.Contains("AllowedIPs = 0.0.0.0/0", updated);
+        Assert.DoesNotContain("DNS", updated);
+        Assert.True(_parser.IsPolicySplitBaseline(updated));
+    }
+
+    [Fact]
+    public void ReadEndpointHost_StripsPortAndBrackets()
+    {
+        var config = """
+            [Peer]
+            PublicKey = y
+            Endpoint = [2001:db8::1]:51820
+            """;
+        Assert.Equal("2001:db8::1", _parser.ReadEndpointHost(config));
+    }
 }

@@ -23,6 +23,7 @@ public class ConnectProfileHandlerTests
             store,
             new FakeBackendFactory(backend),
             new FakeUpdater(new SplitRoutingConfigUpdateResult(false, 5, "1.1.1.1/32", null)),
+            new FakePolicyRouting(),
             NullLogger<ConnectProfileHandler>.Instance);
 
         var result = await handler.HandleAsync(profile.Id);
@@ -86,6 +87,29 @@ public class ConnectProfileHandlerTests
             IProgress<SplitRoutingProgress>? progress = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(result);
+    }
+
+    private sealed class FakePolicyRouting : IPolicyRoutingSetup
+    {
+        public bool IsAvailable => false;
+
+        public Task PrepareConnectionAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<PolicyRoutingApplyResult> ApplyAsync(
+            VpnProfile profile,
+            IReadOnlyList<string> routes,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PolicyRoutingApplyResult(true, null));
+
+        public Task<PolicyRoutingSyncResult> SyncRoutesAsync(
+            VpnProfile profile,
+            IReadOnlyList<string> routes,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PolicyRoutingSyncResult(false, null));
+
+        public Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }
 

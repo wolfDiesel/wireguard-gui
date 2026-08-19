@@ -51,7 +51,7 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
             return await RunCoreAsync("bash", ["-c", script], cancellationToken, timeout: null)
                 .ConfigureAwait(false);
 
-        logger.LogInformation("Privileged command: {Script}", script);
+        logger.LogDebug("Privileged command: {Script}", script);
         var session = GetPrivilegedSession();
         return await session.ExecuteAsync(script, cancellationToken).ConfigureAwait(false);
     }

@@ -10,6 +10,7 @@ namespace WireguardGui.Application.Handlers;
 public sealed class ApplySplitRoutingHandler(
     IProfileStore profileStore,
     ISplitRoutingConfigUpdater splitRoutingConfigUpdater,
+    IPolicyRoutingSetup policyRoutingSetup,
     IWireGuardBackendFactory backendFactory,
     ILogger<ApplySplitRoutingHandler> logger)
 {
@@ -29,7 +30,7 @@ public sealed class ApplySplitRoutingHandler(
 
         var backend = backendFactory.GetBackend(profile.Backend);
         var wasConnected = await backend.GetConnectionStateAsync(profile, cancellationToken) == ConnectionState.Connected;
-        if (wasConnected)
+        if (wasConnected && !policyRoutingSetup.IsAvailable)
             progress?.Report(new SplitRoutingProgress("Progress_Reconnect_Required"));
 
         var configUpdate = await splitRoutingConfigUpdater.TryUpdateConfigAsync(
@@ -39,6 +40,88 @@ public sealed class ApplySplitRoutingHandler(
         if (configUpdate.ErrorMessage is not null)
             return new SplitRoutingResultDto(false, 0, null, configUpdate.ErrorMessage);
 
+        if (configUpdate.UsesPolicyRouting)
+            return await ApplyPolicyRoutingAsync(
+                profileId,
+                profile,
+                backend,
+                configUpdate,
+                wasConnected,
+                progress,
+                cancellationToken);
+
+        return await ApplyLegacyRoutingAsync(
+            profileId,
+            profile,
+            backend,
+            configUpdate,
+            wasConnected,
+            progress,
+            cancellationToken);
+    }
+
+    private async Task<SplitRoutingResultDto> ApplyPolicyRoutingAsync(
+        string profileId,
+        VpnProfile profile,
+        IWireGuardBackend backend,
+        SplitRoutingConfigUpdateResult configUpdate,
+        bool wasConnected,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (!wasConnected)
+        {
+            progress?.Report(new SplitRoutingProgress(
+                configUpdate.Changed ? "Progress_Routes_Written" : "Progress_Routes_Unchanged",
+                configUpdate.RouteCount.ToString()));
+            return new SplitRoutingResultDto(true, configUpdate.RouteCount, configUpdate.RoutesCsv, null);
+        }
+
+        if (configUpdate.Changed)
+        {
+            progress?.Report(new SplitRoutingProgress("Progress_Reconnect_Required"));
+            logger.LogInformation(
+                "Split routing {Profile}: reconnecting after policy baseline update",
+                profile.Name);
+
+            try
+            {
+                await backend.ReimportFromConfigAsync(profile, connectAfter: true, cancellationToken);
+            }
+            catch (WireGuardOperationException ex)
+            {
+                profile = await profileStore.GetProfileAsync(profileId, cancellationToken) ?? profile;
+                var state = await backend.GetConnectionStateAsync(profile, cancellationToken);
+                return ConnectionOutcomeResolver.ResolveSplitRoutingAfterFailure(
+                    state,
+                    configUpdate.RouteCount,
+                    configUpdate.RoutesCsv,
+                    ex.UserMessage);
+            }
+        }
+
+        var syncResult = await policyRoutingSetup.SyncRoutesAsync(
+            profile,
+            configUpdate.Routes ?? [],
+            cancellationToken);
+        if (syncResult.ErrorMessage is not null)
+            return new SplitRoutingResultDto(false, configUpdate.RouteCount, null, syncResult.ErrorMessage);
+
+        progress?.Report(new SplitRoutingProgress(
+            syncResult.RoutesChanged ? "Progress_Done" : "Progress_Routes_Unchanged",
+            configUpdate.RouteCount.ToString()));
+        return new SplitRoutingResultDto(true, configUpdate.RouteCount, configUpdate.RoutesCsv, null);
+    }
+
+    private async Task<SplitRoutingResultDto> ApplyLegacyRoutingAsync(
+        string profileId,
+        VpnProfile profile,
+        IWireGuardBackend backend,
+        SplitRoutingConfigUpdateResult configUpdate,
+        bool wasConnected,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         if (!configUpdate.Changed)
         {
             logger.LogInformation(

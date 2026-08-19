@@ -8,6 +8,39 @@ internal sealed partial class DomainDnsResolver(IProcessRunner processRunner)
 {
     private static readonly SemaphoreSlim ResolveGate = new(6, 6);
 
+    public async Task<IReadOnlyList<string>> ResolveIpv6Async(
+        string domain,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+            return [];
+
+        EnsureDigAvailable();
+
+        await ResolveGate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await processRunner.RunAsync(
+                "dig",
+                ["+short", "AAAA", domain.Trim()],
+                cancellationToken);
+
+            if (!result.IsSuccess)
+                return [];
+
+            return result.StandardOutput
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => line.Contains(':', StringComparison.Ordinal))
+                .Distinct()
+                .ToList();
+        }
+        finally
+        {
+            ResolveGate.Release();
+        }
+    }
+
     public async Task<IReadOnlyList<string>> ResolveIpv4Async(
         string domain,
         CancellationToken cancellationToken)

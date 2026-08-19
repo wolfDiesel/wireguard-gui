@@ -8,6 +8,7 @@ namespace WireguardGui.Application.Handlers;
 public sealed class DisconnectProfileHandler(
     IProfileStore profileStore,
     IWireGuardBackendFactory backendFactory,
+    IPolicyRoutingSetup policyRoutingSetup,
     ILogger<DisconnectProfileHandler> logger)
 {
     public async Task<OperationResultDto> HandleAsync(
@@ -21,6 +22,7 @@ public sealed class DisconnectProfileHandler(
         try
         {
             logger.LogInformation("Disconnecting profile {Name} ({Backend})", profile.Name, profile.Backend);
+            await policyRoutingSetup.TeardownAsync(profile, cancellationToken);
             var backend = backendFactory.GetBackend(profile.Backend);
             await backend.DisconnectAsync(profile, cancellationToken);
             logger.LogInformation("Profile {Name} disconnected", profile.Name);

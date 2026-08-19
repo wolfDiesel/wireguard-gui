@@ -16,6 +16,14 @@ public static class SplitRoutingConstants
         "185.76.151.0/24",
     ];
 
+    public static readonly IReadOnlyList<string> TelegramResolveDomains =
+    [
+        "api.telegram.org",
+        "web.telegram.org",
+        "telegram.org",
+        "t.me",
+    ];
+
     public static readonly IReadOnlyList<string> CloudflareRoutes =
     [
         "188.114.96.0/20",

@@ -36,7 +36,11 @@ internal sealed class CustomDomainsSplitRouteSource(
             foreach (var ip in ips)
                 routes.Add($"{ip}/32");
 
-            logger.LogInformation("Domain {Domain}: {Count} addresses", domain, ips.Count);
+            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, cancellationToken);
+            foreach (var ip in ipv6)
+                routes.Add($"{ip}/128");
+
+            logger.LogInformation("Domain {Domain}: {Count} addresses", domain, ips.Count + ipv6.Count);
         }
 
         return routes;

@@ -121,12 +121,13 @@ public class SplitRoutingConfigUpdaterTests
         try
         {
             var builder = new SplitRouteBuilder(
-                [new TelegramSplitRouteSource()],
+                [SplitRouteSourceTestFactory.CreateTelegramSource(new FakeProcessRunner())],
                 NullLogger<SplitRouteBuilder>.Instance);
             var updater = new SplitRoutingConfigUpdater(
                 store,
                 builder,
                 new WireGuardConfigParser(),
+                new FakePolicyRoutingSetup(),
                 NullLogger<SplitRoutingConfigUpdater>.Instance);
 
             var result = await updater.TryUpdateConfigAsync(profile);
@@ -168,7 +169,7 @@ public class SplitRoutingConfigUpdaterTests
             var dns = new DomainDnsResolver(runner);
             var builder = new SplitRouteBuilder(
                 [
-                    new TelegramSplitRouteSource(),
+                    SplitRouteSourceTestFactory.CreateTelegramSource(runner),
                     new CustomDomainsSplitRouteSource(dns, NullLogger<CustomDomainsSplitRouteSource>.Instance),
                 ],
                 NullLogger<SplitRouteBuilder>.Instance);
@@ -176,6 +177,7 @@ public class SplitRoutingConfigUpdaterTests
                 store,
                 builder,
                 new WireGuardConfigParser(),
+                new FakePolicyRoutingSetup(),
                 NullLogger<SplitRoutingConfigUpdater>.Instance);
 
             var unchanged = await updater.TryUpdateConfigAsync(profile);
@@ -188,6 +190,51 @@ public class SplitRoutingConfigUpdaterTests
             var changed = await updater.TryUpdateConfigAsync(withDomain);
             Assert.True(changed.Changed);
             Assert.Contains("93.184.216.34/32", changed.RoutesCsv!);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task TryUpdateConfig_PolicyMode_WritesBaselineAndReturnsRoutes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "wg-policy-upd-" + Guid.NewGuid().ToString("N"));
+        var store = TestStoreFactory.Create(root);
+        var profile = VpnProfile.Create("test", BackendKind.Native, "test") with
+        {
+            SplitRouting = SplitRoutingSettings.CreateDefault() with { Enabled = true, Youtube = false, Telegram = true },
+        };
+
+        Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));
+        await File.WriteAllTextAsync(store.GetConfigPath(profile), """
+            [Interface]
+            PrivateKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
+            [Peer]
+            PublicKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
+            AllowedIPs = 149.154.160.0/20
+            """);
+
+        try
+        {
+            var builder = new SplitRouteBuilder(
+                [SplitRouteSourceTestFactory.CreateTelegramSource(new FakeProcessRunner())],
+                NullLogger<SplitRouteBuilder>.Instance);
+            var updater = new SplitRoutingConfigUpdater(
+                store,
+                builder,
+                new WireGuardConfigParser(),
+                new FakePolicyRoutingSetup { IsAvailable = true },
+                NullLogger<SplitRoutingConfigUpdater>.Instance);
+
+            var result = await updater.TryUpdateConfigAsync(profile);
+
+            Assert.True(result.Changed);
+            Assert.True(result.UsesPolicyRouting);
+            Assert.NotNull(result.Routes);
+            Assert.Contains("Table = off", await File.ReadAllTextAsync(store.GetConfigPath(profile)));
+            Assert.Contains("AllowedIPs = 0.0.0.0/0", await File.ReadAllTextAsync(store.GetConfigPath(profile)));
         }
         finally
         {

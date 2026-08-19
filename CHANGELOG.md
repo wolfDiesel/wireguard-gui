@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] - 2026-08-19
+
+### Added
+
+- Policy-based split routing on Linux: selected destinations use `ip rule to <CIDR> lookup <table>` with a per-profile routing table instead of stuffing routes into `AllowedIPs`.
+- `IPolicyRoutingSetup` / `PolicyRoutingSetup`: apply on connect, sync on refresh, teardown on disconnect.
+- WireGuard policy baseline when `ip` is available: `Table = off`, `AllowedIPs = 0.0.0.0/0` (main table stays direct; only split targets go through VPN).
+- Telegram domain DNS resolve and Twitch AAAA records for policy routing.
+- Endpoint host `/32` route via the main gateway so the tunnel stays reachable.
+
+### Changed
+
+- Split routing refresh updates policy rules in place — no reconnect when CDN IPs change.
+- Privileged network commands use `RunPrivilegedAsync` argument lists instead of bash scripts; full privileged script text logs at Debug only.
+
+### Fixed
+
+- Policy routing apply failing when the WireGuard interface has no IPv6 (IPv6 rules skipped when the tunnel is IPv4-only).
+
 ## [1.3.1] - 2026-08-18
 
 ### Added

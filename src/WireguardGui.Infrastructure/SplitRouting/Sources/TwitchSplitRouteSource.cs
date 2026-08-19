@@ -59,14 +59,18 @@ internal sealed class TwitchSplitRouteSource(
             {
                 emptyHosts++;
                 logger.LogDebug("Twitch {Domain}: no A records", domain);
-                continue;
+            }
+            else
+            {
+                resolvedHosts++;
+                foreach (var ip in ips)
+                    routes.Add($"{ip}/32");
+                logger.LogInformation("Twitch {Domain}: {Count} addresses", domain, ips.Count);
             }
 
-            resolvedHosts++;
-            foreach (var ip in ips)
-                routes.Add($"{ip}/32");
-
-            logger.LogInformation("Twitch {Domain}: {Count} addresses", domain, ips.Count);
+            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, cancellationToken).ConfigureAwait(false);
+            foreach (var ip in ipv6)
+                routes.Add($"{ip}/128");
         }
 
         logger.LogInformation(

@@ -10,6 +10,7 @@ public sealed class SplitRoutingConfigUpdater(
     IProfileStore profileStore,
     ISplitRouteBuilder splitRouteBuilder,
     IWireGuardConfigParser configParser,
+    IPolicyRoutingSetup policyRoutingSetup,
     ILogger<SplitRoutingConfigUpdater> logger) : ISplitRoutingConfigUpdater
 {
     public async Task<SplitRoutingConfigUpdateResult> TryUpdateConfigAsync(
@@ -40,9 +41,81 @@ public sealed class SplitRoutingConfigUpdater(
             return new SplitRoutingConfigUpdateResult(false, 0, null, "No routes were generated");
         }
 
+        var routesCsv = string.Join(",", routes);
         var configPath = profileStore.GetConfigPath(profile);
         var configContent = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
-        var routesCsv = string.Join(",", routes);
+
+        if (policyRoutingSetup.IsAvailable)
+            return await TryUpdatePolicyBaselineAsync(
+                profile,
+                routes,
+                routesCsv,
+                configPath,
+                configContent,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+
+        return await TryUpdateLegacyAllowedIpsAsync(
+            profile,
+            routes,
+            routesCsv,
+            configPath,
+            configContent,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<SplitRoutingConfigUpdateResult> TryUpdatePolicyBaselineAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> routes,
+        string routesCsv,
+        string configPath,
+        string configContent,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (configParser.IsPolicySplitBaseline(configContent))
+        {
+            logger.LogInformation(
+                "Config {Profile}: policy baseline unchanged ({Count} routes)",
+                profile.Name,
+                routes.Count);
+            return new SplitRoutingConfigUpdateResult(
+                false,
+                routes.Count,
+                routesCsv,
+                null,
+                routes,
+                UsesPolicyRouting: true);
+        }
+
+        progress?.Report(new SplitRoutingProgress("Progress_Write_Config"));
+
+        var updated = configParser.EnsurePolicySplitBaseline(configContent);
+        await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Config {Profile}: switched to policy split baseline ({Count} live routes)",
+            profile.Name,
+            routes.Count);
+
+        return new SplitRoutingConfigUpdateResult(
+            true,
+            routes.Count,
+            routesCsv,
+            null,
+            routes,
+            UsesPolicyRouting: true);
+    }
+
+    private async Task<SplitRoutingConfigUpdateResult> TryUpdateLegacyAllowedIpsAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> routes,
+        string routesCsv,
+        string configPath,
+        string configContent,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         var normalizedNew = configParser.NormalizeAllowedIps(routesCsv);
         var normalizedOld = configParser.NormalizeAllowedIps(configParser.ReadAllowedIps(configContent));
         var dnsPresent = configParser.HasDns(configContent);
