@@ -22,7 +22,15 @@ public sealed class DisconnectProfileHandler(
         try
         {
             logger.LogInformation("Disconnecting profile {Name} ({Backend})", profile.Name, profile.Backend);
-            await policyRoutingSetup.TeardownAsync(profile, cancellationToken);
+            try
+            {
+                await policyRoutingSetup.TeardownAsync(profile, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Policy routing teardown failed for {Name}", profile.Name);
+            }
+
             var backend = backendFactory.GetBackend(profile.Backend);
             await backend.DisconnectAsync(profile, cancellationToken);
             logger.LogInformation("Profile {Name} disconnected", profile.Name);

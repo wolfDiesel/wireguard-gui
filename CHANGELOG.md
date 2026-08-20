@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.1] - 2026-08-20
+
+### Added
+
+- Custom domains: CIDR entries (`157.240.0.0/16`) accepted as static routes; apex domains also resolve `www.`.
+
+### Fixed
+
+- Disconnect crash when policy routing table was already empty (`FIB table does not exist`).
+- Apply/disconnect: unexpected policy-routing and resolve errors no longer crash the UI.
+
 ## [1.4.0] - 2026-08-19
 
 ### Added

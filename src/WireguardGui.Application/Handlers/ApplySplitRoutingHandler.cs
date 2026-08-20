@@ -19,6 +19,22 @@ public sealed class ApplySplitRoutingHandler(
         IProgress<SplitRoutingProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        try
+        {
+            return await HandleCoreAsync(profileId, progress, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Apply split routing failed for {ProfileId}", profileId);
+            return new SplitRoutingResultDto(false, 0, null, ex.Message);
+        }
+    }
+
+    private async Task<SplitRoutingResultDto> HandleCoreAsync(
+        string profileId,
+        IProgress<SplitRoutingProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
             return new SplitRoutingResultDto(false, 0, null, "Profile not found");

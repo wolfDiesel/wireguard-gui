@@ -163,6 +163,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
                     _refreshScheduler.NotifyProfileConnected(_selectedProfile.Id);
             }
         }
+        catch (Exception ex)
+        {
+            _toast.ShowError(T("Toast_Routes_Failed"), ex.Message);
+        }
         finally
         {
             _applyInProgress = false;

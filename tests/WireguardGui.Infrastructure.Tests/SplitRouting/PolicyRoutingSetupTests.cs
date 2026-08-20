@@ -82,6 +82,17 @@ public class PolicyRoutingSetupTests
         Assert.Contains(runner.PrivilegedCommands, c => MatchesIp(c, "route", "flush", "table", table));
     }
 
+    [Fact]
+    public async Task TeardownAsync_IgnoresMissingFibTable()
+    {
+        var runner = new TrackingProcessRunner { FailRouteFlush = true };
+        var context = CreateContext(runner);
+
+        var exception = await Record.ExceptionAsync(() => context.Setup.TeardownAsync(context.Profile));
+
+        Assert.Null(exception);
+    }
+
     private static bool MatchesIp((string FileName, string[] Arguments) command, params string[] expected) =>
         command.FileName == "ip" && command.Arguments.SequenceEqual(expected);
 

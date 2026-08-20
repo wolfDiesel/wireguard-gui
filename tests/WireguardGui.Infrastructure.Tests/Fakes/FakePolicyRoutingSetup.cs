@@ -56,6 +56,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
 
     public bool IpAvailable { get; init; } = true;
     public bool InterfaceIpv6Capable { get; init; } = true;
+    public bool FailRouteFlush { get; init; }
     public string WgInterfaces { get; init; } = "wg0";
     public string DefaultRoute { get; init; } = "default via 192.168.1.1 dev eth0";
 
@@ -101,6 +102,15 @@ internal sealed class TrackingProcessRunner : IProcessRunner
     public Task<ProcessResult> RunPrivilegedAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
         PrivilegedCommands.Add((fileName, arguments.ToArray()));
+        if (FailRouteFlush &&
+            fileName == "ip" &&
+            arguments.Count >= 2 &&
+            string.Equals(arguments[0], "route", StringComparison.Ordinal) &&
+            string.Equals(arguments[1], "flush", StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ProcessResult(2, string.Empty, "Error: ipv4: FIB table does not exist.\nFlush terminated\n"));
+        }
+
         return RunAsync(fileName, arguments, cancellationToken);
     }
 

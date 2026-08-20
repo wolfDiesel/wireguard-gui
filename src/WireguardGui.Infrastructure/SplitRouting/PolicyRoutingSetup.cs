@@ -107,12 +107,16 @@ public sealed class PolicyRoutingSetup(
         var nftTable = PolicyRoutingNaming.NftTable;
 
         await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
-        await RunIpPrivilegedAsync(["route", "flush", "table", table.ToString()], cancellationToken)
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["route", "flush", "table", table.ToString()],
+            cancellationToken).ConfigureAwait(false);
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["-6", "route", "flush", "table", table.ToString()],
+            cancellationToken).ConfigureAwait(false);
+        await RunIpPrivilegedIgnoringErrorsAsync(["rule", "flush", "fwmark", mark], cancellationToken)
             .ConfigureAwait(false);
-        await RunIpPrivilegedAsync(["-6", "route", "flush", "table", table.ToString()], cancellationToken)
+        await RunIpPrivilegedIgnoringErrorsAsync(["-6", "rule", "flush", "fwmark", mark], cancellationToken)
             .ConfigureAwait(false);
-        await RunIpPrivilegedAsync(["rule", "flush", "fwmark", mark], cancellationToken).ConfigureAwait(false);
-        await RunIpPrivilegedAsync(["-6", "rule", "flush", "fwmark", mark], cancellationToken).ConfigureAwait(false);
         await RunPrivilegedIgnoringErrorsAsync(
             "nft",
             ["delete", "chain", "inet", nftTable, chain],
@@ -163,7 +167,7 @@ public sealed class PolicyRoutingSetup(
             if (string.IsNullOrEmpty(trimmed))
                 continue;
 
-            await RunIpPrivilegedAsync(
+            await RunIpPrivilegedIgnoringErrorsAsync(
                 ["rule", "add", "pref", RulePreference.ToString(), "to", trimmed, "lookup", tableText],
                 cancellationToken).ConfigureAwait(false);
         }
@@ -180,12 +184,12 @@ public sealed class PolicyRoutingSetup(
                 if (string.IsNullOrEmpty(trimmed))
                     continue;
 
-                await RunIpPrivilegedAsync(
+                await RunIpPrivilegedIgnoringErrorsAsync(
                     ["-6", "rule", "add", "pref", RulePreference.ToString(), "to", trimmed, "lookup", tableText],
                     cancellationToken).ConfigureAwait(false);
             }
 
-            await RunIpPrivilegedAsync(
+            await RunIpPrivilegedIgnoringErrorsAsync(
                 ["-6", "route", "replace", "default", "dev", iface, "table", tableText],
                 cancellationToken).ConfigureAwait(false);
         }
