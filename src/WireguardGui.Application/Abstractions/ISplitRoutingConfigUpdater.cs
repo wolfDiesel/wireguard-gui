@@ -22,6 +22,7 @@ public sealed record SplitRoutingConfigUpdateResult(
 public static class SplitRoutingPolicy
 {
     public const bool RemoveDnsOnApply = true;
+    public const bool RemoveDnsOnPolicyApply = false;
     public const string PolicyAllowedIps = "0.0.0.0/0";
     public const string PolicyTable = "off";
 }

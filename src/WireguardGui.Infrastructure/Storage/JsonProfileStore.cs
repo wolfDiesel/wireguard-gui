@@ -197,6 +197,7 @@ public sealed class JsonProfileStore : IProfileStore
         public bool? IncludeCloudflare { get; set; }
         public int MaxRoutes { get; set; } = SplitRoutingSettings.DefaultMaxRoutes;
         public string? TwitchChannel { get; set; }
+        public string? TunnelDns { get; set; }
 
         public SplitRoutingSettings ToDomain()
         {
@@ -209,7 +210,8 @@ public sealed class JsonProfileStore : IProfileStore
                 CustomDomains ?? [],
                 IncludeCloudflare ?? defaults.IncludeCloudflare,
                 MaxRoutes,
-                TwitchChannel).Normalize();
+                TwitchChannel,
+                TunnelDns).Normalize();
         }
 
         public static SplitRoutingFile FromDomain(SplitRoutingSettings settings) =>
@@ -223,6 +225,7 @@ public sealed class JsonProfileStore : IProfileStore
                 IncludeCloudflare = settings.IncludeCloudflare,
                 MaxRoutes = settings.MaxRoutes,
                 TwitchChannel = settings.TwitchChannel,
+                TunnelDns = settings.TunnelDns,
             };
     }
 }

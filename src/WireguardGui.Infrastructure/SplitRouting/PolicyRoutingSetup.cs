@@ -23,6 +23,7 @@ public sealed class PolicyRoutingSetup(
             return;
 
         await RunNmcliNeverDefaultAsync(profile, cancellationToken).ConfigureAwait(false);
+        await ConfigureNmcliDnsFromConfigAsync(profile, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PolicyRoutingApplyResult> ApplyAsync(
@@ -42,6 +43,7 @@ public sealed class PolicyRoutingSetup(
             await EnsureNmcliNeverDefaultAsync(profile, reconnect: true, cancellationToken).ConfigureAwait(false);
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
             await EnsureEndpointRouteAsync(profile, cancellationToken).ConfigureAwait(false);
+            await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = PolicyRoutingNaming.NormalizeRoutesKey(routes);
             logger.LogInformation(
                 "Policy routing applied for {Profile} on {Interface} ({Count} routes)",
@@ -80,6 +82,7 @@ public sealed class PolicyRoutingSetup(
                 return new PolicyRoutingSyncResult(false, "WireGuard interface not found");
 
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
+            await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = key;
             logger.LogInformation(
                 "Policy routing synced for {Profile} ({Count} routes)",
@@ -107,6 +110,10 @@ public sealed class PolicyRoutingSetup(
         var nftTable = PolicyRoutingNaming.NftTable;
 
         await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
+        var iface = await ResolveWireGuardInterfaceAsync(profile, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(iface))
+            await ClearTunnelDnsAsync(iface, cancellationToken).ConfigureAwait(false);
+
         await RunIpPrivilegedIgnoringErrorsAsync(
             ["route", "flush", "table", table.ToString()],
             cancellationToken).ConfigureAwait(false);
@@ -242,6 +249,120 @@ public sealed class PolicyRoutingSetup(
             "nmcli",
             ["connection", "modify", profile.ConnectionName, "ipv4.never-default", "yes", "ipv6.never-default", "yes"],
             cancellationToken);
+
+    private async Task EnsureTunnelDnsAsync(
+        VpnProfile profile,
+        string iface,
+        CancellationToken cancellationToken)
+    {
+        var configPath = profileStore.GetConfigPath(profile);
+        var configContent = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var dnsServers = configParser.ResolveTunnelDnsServers(configContent);
+        if (dnsServers.Count == 0)
+        {
+            logger.LogWarning("Policy routing {Profile}: no tunnel DNS configured", profile.Name);
+            return;
+        }
+
+        if (profile.Backend == BackendKind.Nmcli)
+            await ConfigureNmcliDnsFromConfigAsync(profile, cancellationToken).ConfigureAwait(false);
+
+        await ConfigureResolvedDnsAsync(iface, dnsServers, cancellationToken).ConfigureAwait(false);
+        await EnsureDnsPolicyRoutesAsync(profile, iface, dnsServers, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Policy routing {Profile}: tunnel DNS {Servers} on {Interface}",
+            profile.Name,
+            string.Join(", ", dnsServers),
+            iface);
+    }
+
+    private async Task ConfigureNmcliDnsFromConfigAsync(VpnProfile profile, CancellationToken cancellationToken)
+    {
+        var configPath = profileStore.GetConfigPath(profile);
+        var configContent = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var dnsServers = configParser.ResolveTunnelDnsServers(configContent);
+        if (dnsServers.Count == 0)
+            return;
+
+        await ConfigureNmcliDnsAsync(profile, dnsServers, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ConfigureNmcliDnsAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> dnsServers,
+        CancellationToken cancellationToken)
+    {
+        var dnsCsv = string.Join(",", dnsServers);
+        await processRunner.RunPrivilegedAsync(
+            "nmcli",
+            [
+                "connection", "modify", profile.ConnectionName,
+                "ipv4.ignore-auto-dns", "yes",
+                "ipv6.ignore-auto-dns", "yes",
+                "ipv4.dns", dnsCsv,
+            ],
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ConfigureResolvedDnsAsync(
+        string iface,
+        IReadOnlyList<string> dnsServers,
+        CancellationToken cancellationToken)
+    {
+        if (!processRunner.IsCommandAvailable("resolvectl"))
+            return;
+
+        var dnsArgs = new List<string> { "dns", iface };
+        dnsArgs.AddRange(dnsServers);
+        await RunPrivilegedIgnoringErrorsAsync("resolvectl", dnsArgs, cancellationToken).ConfigureAwait(false);
+
+        if (TunnelDnsServers.ShouldCaptureAllDns(dnsServers))
+        {
+            await RunPrivilegedIgnoringErrorsAsync(
+                "resolvectl",
+                ["domain", iface, "~."],
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await RunPrivilegedIgnoringErrorsAsync(
+            "resolvectl",
+            ["domain", iface],
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ClearTunnelDnsAsync(string iface, CancellationToken cancellationToken)
+    {
+        if (!processRunner.IsCommandAvailable("resolvectl"))
+            return;
+
+        await RunPrivilegedIgnoringErrorsAsync("resolvectl", ["revert", iface], cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task EnsureDnsPolicyRoutesAsync(
+        VpnProfile profile,
+        string iface,
+        IReadOnlyList<string> dnsServers,
+        CancellationToken cancellationToken)
+    {
+        var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
+        var tableText = table.ToString();
+
+        foreach (var server in dnsServers)
+        {
+            if (server.Contains(':', StringComparison.Ordinal))
+                continue;
+
+            await RunIpPrivilegedIgnoringErrorsAsync(
+                ["rule", "add", "pref", RulePreference.ToString(), "to", $"{server}/32", "lookup", tableText],
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["route", "replace", "default", "dev", iface, "table", tableText],
+            cancellationToken).ConfigureAwait(false);
+    }
 
     private async Task EnsureEndpointRouteAsync(VpnProfile profile, CancellationToken cancellationToken)
     {

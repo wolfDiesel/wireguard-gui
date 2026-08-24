@@ -47,6 +47,12 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     private string _customDomainsText = string.Empty;
 
     [ObservableProperty]
+    private string _tunnelDnsText = string.Empty;
+
+    [ObservableProperty]
+    private string _tunnelDnsPlaceholder = string.Empty;
+
+    [ObservableProperty]
     private bool _hasUnappliedChanges;
 
     [ObservableProperty]
@@ -63,6 +69,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     public string SplitTwitchChannelLabel => T("Profiles_Split_TwitchChannel");
     public string SplitCloudflareLabel => T("Profiles_Split_Cloudflare");
     public string SplitDomainsLabel => T("Profiles_Split_Domains");
+    public string SplitTunnelDnsLabel => T("Profiles_Split_TunnelDns");
+    public string SplitTunnelDnsHint => T("Profiles_Split_TunnelDns_Hint");
     public string SplitApplyLabel => T("Profiles_Split_Apply");
     public string SplitHintCloudflare => T("Profiles_Split_Hint_Cloudflare");
     public string SplitHintTwitch => T("Profiles_Split_Hint_Twitch");
@@ -193,6 +201,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     partial void OnSplitCloudflareChanged(bool value) => OnEdited();
     partial void OnTwitchChannelChanged(string value) => OnEdited();
     partial void OnCustomDomainsTextChanged(string value) => OnEdited();
+    partial void OnTunnelDnsTextChanged(string value) => OnEdited();
 
     private async Task LoadAsync(ProfileRowViewModel? row)
     {
@@ -216,6 +225,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             SplitCloudflare = settings.IncludeCloudflare;
             TwitchChannel = settings.TwitchChannel ?? string.Empty;
             CustomDomainsText = string.Join('\n', settings.CustomDomains);
+            TunnelDnsText = settings.TunnelDns ?? string.Empty;
+            TunnelDnsPlaceholder = result.TunnelDnsPlaceholder ?? string.Empty;
             _saved = settings;
             UpdateDirtyState();
         }
@@ -266,7 +277,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             domains,
             SplitCloudflare,
             SplitRoutingSettings.DefaultMaxRoutes,
-            TwitchChannel).Normalize();
+            TwitchChannel,
+            string.IsNullOrWhiteSpace(TunnelDnsText) ? null : TunnelDnsText.Trim()).Normalize();
     }
 
     private void CaptureSavedFromUi()
@@ -298,6 +310,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         && left.IncludeCloudflare == right.IncludeCloudflare
         && left.MaxRoutes == right.MaxRoutes
         && string.Equals(left.TwitchChannel, right.TwitchChannel, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(left.TunnelDns, right.TunnelDns, StringComparison.OrdinalIgnoreCase)
         && left.CustomDomains.SequenceEqual(right.CustomDomains, StringComparer.OrdinalIgnoreCase);
 
     protected override void OnLocalizationChanged() =>
@@ -310,6 +323,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             nameof(SplitTwitchChannelLabel),
             nameof(SplitCloudflareLabel),
             nameof(SplitDomainsLabel),
+            nameof(SplitTunnelDnsLabel),
+            nameof(SplitTunnelDnsHint),
             nameof(SplitApplyLabel),
             nameof(SplitHintCloudflare),
             nameof(SplitHintTwitch),

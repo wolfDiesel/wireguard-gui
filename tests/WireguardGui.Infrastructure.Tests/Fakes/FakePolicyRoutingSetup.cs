@@ -66,6 +66,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
         "dig" => true,
         "wg" => true,
         "nmcli" => true,
+        "resolvectl" => true,
         _ => false,
     };
 

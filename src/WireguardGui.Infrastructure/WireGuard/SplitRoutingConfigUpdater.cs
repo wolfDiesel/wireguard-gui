@@ -74,7 +74,8 @@ public sealed class SplitRoutingConfigUpdater(
         IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
     {
-        if (configParser.IsPolicySplitBaseline(configContent))
+        var updated = configParser.EnsurePolicySplitBaseline(configContent);
+        if (string.Equals(updated, configContent, StringComparison.Ordinal))
         {
             logger.LogInformation(
                 "Config {Profile}: policy baseline unchanged ({Count} routes)",
@@ -91,10 +92,9 @@ public sealed class SplitRoutingConfigUpdater(
 
         progress?.Report(new SplitRoutingProgress("Progress_Write_Config"));
 
-        var updated = configParser.EnsurePolicySplitBaseline(configContent);
         await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
-            "Config {Profile}: switched to policy split baseline ({Count} live routes)",
+            "Config {Profile}: updated policy split baseline ({Count} live routes)",
             profile.Name,
             routes.Count);
 

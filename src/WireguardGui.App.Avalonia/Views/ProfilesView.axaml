@@ -106,6 +106,9 @@
                 </StackPanel>
               </Border>
               <CheckBox Content="{Binding SplitEnableLabel}" IsChecked="{Binding SplitRoutingEnabled}" />
+              <TextBlock Classes="field-label" Text="{Binding SplitTunnelDnsLabel}" />
+              <TextBox Text="{Binding TunnelDnsText}" PlaceholderText="{Binding TunnelDnsPlaceholder}" />
+              <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitTunnelDnsHint}" />
               <CheckBox Content="{Binding SplitYoutubeLabel}" IsChecked="{Binding SplitYoutube}"
                         IsEnabled="{Binding SplitRoutingOptionsEnabled}" />
               <CheckBox Content="{Binding SplitTelegramLabel}" IsChecked="{Binding SplitTelegram}"

@@ -44,6 +44,14 @@ public class SplitRoutingSettingsTests
     }
 
     [Fact]
+    public void Normalize_DefaultsTunnelDnsToGoogle()
+    {
+        var settings = new SplitRoutingSettings(false, true, true, false, [], false, 200);
+        Assert.Equal(TunnelDnsServers.Default, settings.Normalize().TunnelDns);
+        Assert.Equal(TunnelDnsServers.Default, SplitRoutingSettings.CreateDefault().TunnelDns);
+    }
+
+    [Fact]
     public void NeedsDnsRouteRefresh_WhenTwitchOrCustom()
     {
         Assert.True(new SplitRoutingSettings(true, false, false, true, [], false, 200)

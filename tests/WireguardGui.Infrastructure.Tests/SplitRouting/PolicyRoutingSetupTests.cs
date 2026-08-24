@@ -83,6 +83,49 @@ public class PolicyRoutingSetupTests
     }
 
     [Fact]
+    public async Task ApplyAsync_ConfiguresTunnelDns()
+    {
+        var runner = new TrackingProcessRunner();
+        var context = CreateContext(runner);
+
+        var result = await context.Setup.ApplyAsync(context.Profile, ["1.1.1.1/32"]);
+
+        Assert.True(result.Success);
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c is { FileName: "nmcli", Arguments: var a } &&
+                 a.Contains("ipv4.dns") &&
+                 a.Contains("8.8.8.8"));
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c is { FileName: "resolvectl", Arguments: ["dns", "wg0", "8.8.8.8"] });
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c is { FileName: "resolvectl", Arguments: ["domain", "wg0", "~."] });
+    }
+
+    [Fact]
+    public async Task ApplyAsync_PublicDns_CapturesAllDomains()
+    {
+        var runner = new TrackingProcessRunner();
+        var context = CreateContext(runner, dns: "8.8.8.8");
+
+        var result = await context.Setup.ApplyAsync(context.Profile, ["1.1.1.1/32"]);
+
+        Assert.True(result.Success);
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c is { FileName: "resolvectl", Arguments: ["dns", "wg0", "8.8.8.8"] });
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c is { FileName: "resolvectl", Arguments: ["domain", "wg0", "~."] });
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => MatchesIp(c, "rule", "add", "pref", "100", "to", "8.8.8.8/32", "lookup",
+                PolicyRoutingNaming.RoutingTableId(context.Profile.Id).ToString()));
+    }
+
+    [Fact]
     public async Task TeardownAsync_IgnoresMissingFibTable()
     {
         var runner = new TrackingProcessRunner { FailRouteFlush = true };
@@ -96,19 +139,21 @@ public class PolicyRoutingSetupTests
     private static bool MatchesIp((string FileName, string[] Arguments) command, params string[] expected) =>
         command.FileName == "ip" && command.Arguments.SequenceEqual(expected);
 
-    private static TestContext CreateContext(TrackingProcessRunner runner)
+    private static TestContext CreateContext(TrackingProcessRunner runner, string? dns = null)
     {
         var root = Path.Combine(Path.GetTempPath(), "wg-policy-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var store = TestStoreFactory.Create(root);
-        var profile = VpnProfile.Create("p1", BackendKind.Native, "wg0");
+        var profile = VpnProfile.Create("p1", BackendKind.Nmcli, "wg0");
         Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));
+        var dnsLine = dns is null ? string.Empty : $"DNS = {dns}\n";
         File.WriteAllText(
             store.GetConfigPath(profile),
-            """
+            $"""
             [Interface]
             PrivateKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
-            [Peer]
+            Address = 10.8.0.5/32
+            {dnsLine}[Peer]
             PublicKey = abcdefghijklmnopqrstuvwxyz0123456789ABCD=
             Endpoint = vpn.example.com:51820
             AllowedIPs = 0.0.0.0/0

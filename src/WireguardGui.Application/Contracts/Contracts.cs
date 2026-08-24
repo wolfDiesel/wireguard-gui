@@ -39,6 +39,7 @@ public sealed record SplitRoutingResultDto(
 public sealed record SplitRoutingSettingsResultDto(
     bool Success,
     SplitRoutingSettings? Settings,
+    string? TunnelDnsPlaceholder,
     string? ErrorMessage);
 
 public enum OperationErrorCode

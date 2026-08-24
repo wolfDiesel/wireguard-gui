@@ -44,9 +44,16 @@ public sealed class ProfileImporter(
         if (backend == BackendKind.Nmcli)
             configContent = configParser.RemoveInterfaceName(configContent);
 
+        var importedDns = configParser.ReadDnsServers(configContent);
+        var tunnelDns = importedDns.Count > 0
+            ? string.Join(", ", importedDns)
+            : TunnelDnsServers.Default;
+        var splitRouting = SplitRoutingSettings.CreateDefault() with { TunnelDns = tunnelDns };
+
         var profile = VpnProfile.Create(fileName, backend, connectionName) with
         {
             ConfigFileName = configFileName,
+            SplitRouting = splitRouting,
         };
 
         var profileDir = profileStore.GetProfileDirectory(profile.Id);

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.2] - 2026-08-25
+
+### Added
+
+- Policy split routing: tunnel DNS field in the profile UI (default `8.8.8.8`); DNS queries go through the VPN via systemd-resolved on the WireGuard interface.
+- Keep/write `DNS` in the WireGuard config for policy mode; sync profile DNS into `.conf` on save/apply/connect.
+
+### Fixed
+
+- Writing DNS into the profile `.conf` no longer eats newlines (previously glued lines and wiped `PrivateKey` / `[Peer]`).
+
 ## [1.4.1] - 2026-08-20
 
 ### Added

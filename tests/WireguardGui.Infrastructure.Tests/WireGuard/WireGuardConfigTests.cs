@@ -121,8 +121,80 @@ public class WireGuardConfigParserTests
         var updated = _parser.EnsurePolicySplitBaseline(config);
         Assert.Contains("Table = off", updated);
         Assert.Contains("AllowedIPs = 0.0.0.0/0", updated);
-        Assert.DoesNotContain("DNS", updated);
+        Assert.Contains("DNS = 1.1.1.1", updated);
         Assert.True(_parser.IsPolicySplitBaseline(updated));
+    }
+
+    [Fact]
+    public void EnsurePolicySplitBaseline_UsesDefaultDnsWhenMissing()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            Address = 10.8.0.5/32
+            [Peer]
+            PublicKey = y
+            AllowedIPs = 10.0.0.0/8
+            """;
+        var updated = _parser.EnsurePolicySplitBaseline(config);
+        Assert.Contains("DNS = 8.8.8.8", updated);
+    }
+
+    [Fact]
+    public void ReadDnsServers_ParsesCommaSeparatedValues()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            DNS = 10.8.0.1, 1.1.1.1
+            [Peer]
+            PublicKey = y
+            """;
+        Assert.Equal(["10.8.0.1", "1.1.1.1"], _parser.ReadDnsServers(config));
+        Assert.Equal(["10.8.0.1", "1.1.1.1"], _parser.ResolveTunnelDnsServers(config));
+    }
+
+    [Fact]
+    public void ApplyTunnelDns_WritesAndRemovesDns()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            Address = 10.8.0.5/32
+            [Peer]
+            PublicKey = y
+            """;
+        var withDns = _parser.ApplyTunnelDns(config, "10.8.0.1");
+        Assert.Contains("DNS = 10.8.0.1", withDns);
+
+        var withoutDns = _parser.ApplyTunnelDns(withDns, null);
+        Assert.DoesNotContain("DNS =", withoutDns);
+    }
+
+    [Fact]
+    public void WriteDns_PreservesFollowingLinesWhenUpdating()
+    {
+        var config = """
+            [Interface]
+            DNS = 10.8.0.1
+            PrivateKey = keep-me
+            Address = 10.8.0.5/32
+            Table = off
+            [Peer]
+            PublicKey = y
+            AllowedIPs = 0.0.0.0/0
+            Endpoint = 1.2.3.4:51820
+            """;
+        var updated = _parser.ApplyTunnelDns(config, "8.8.8.8");
+        Assert.Contains("DNS = 8.8.8.8\n", updated.Replace("\r\n", "\n"));
+        Assert.Contains("PrivateKey = keep-me", updated);
+        Assert.Contains("Endpoint = 1.2.3.4:51820", updated);
+        Assert.DoesNotContain("8.8.8.8PrivateKey", updated);
+        Assert.DoesNotContain("8.8.8.8Endpoint", updated);
+
+        var again = _parser.ApplyTunnelDns(updated, "1.1.1.1");
+        Assert.Contains("PrivateKey = keep-me", again);
+        Assert.Contains("Endpoint = 1.2.3.4:51820", again);
     }
 
     [Fact]
