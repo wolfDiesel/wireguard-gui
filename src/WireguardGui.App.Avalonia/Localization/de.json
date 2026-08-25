@@ -39,6 +39,7 @@
   "Profiles_Split_TunnelDns": "Tunnel-DNS",
   "Profiles_Split_TunnelDns_Hint": "Standard 8.8.8.8. Anfragen laufen über den VPN-Tunnel (systemd-resolved). Mehrere Server durch Komma trennen.",
   "Profiles_Split_Apply": "Routen anwenden",
+  "Profiles_Split_Refresh": "Routen aktualisieren",
   "Profiles_Split_Hint_Cloudflare": "Routen werden in AllowedIPs der Config geschrieben. Cloudflare umfasst alle Sites hinter dem Cloudflare-CDN (z. B. lostfilm), auch wenn die Domain nicht gelistet ist.",
   "Profiles_Split_Hint_Twitch": "Twitch-Seeds werden per DNS aufgelöst; Routen werden bei Connect/Apply und alle 10 Minuten bei Verbindung aktualisiert. Optionaler Kanal erkennt Playlist/HLS-Hosts über Usher.",
   "Profiles_Split_Hint_DnsRemoved": "Policy-Modus leitet ausgewählten Traffic per ip rules; DNS oben gilt bei Connect und Apply.",

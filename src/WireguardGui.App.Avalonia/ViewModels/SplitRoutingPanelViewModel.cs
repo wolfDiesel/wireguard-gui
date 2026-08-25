@@ -72,6 +72,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     public string SplitTunnelDnsLabel => T("Profiles_Split_TunnelDns");
     public string SplitTunnelDnsHint => T("Profiles_Split_TunnelDns_Hint");
     public string SplitApplyLabel => T("Profiles_Split_Apply");
+    public string SplitRefreshLabel => T("Profiles_Split_Refresh");
     public string SplitHintCloudflare => T("Profiles_Split_Hint_Cloudflare");
     public string SplitHintTwitch => T("Profiles_Split_Hint_Twitch");
     public string SplitHintDnsRemoved => T("Profiles_Split_Hint_DnsRemoved");
@@ -79,6 +80,9 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
 
     public bool CanApplySplitRouting =>
         _selectedProfile is not null && SplitRoutingEnabled && HasUnappliedChanges && !IsApplyingRoutes;
+
+    public bool CanRefreshSplitRouting =>
+        _selectedProfile is not null && SplitRoutingEnabled && !IsApplyingRoutes;
 
     public bool ShowReconnectHint =>
         _selectedProfile is { IsConnected: true } && SplitRoutingEnabled;
@@ -103,7 +107,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     {
         _selectedProfile = profile;
         OnPropertyChanged(nameof(CanApplySplitRouting));
+        OnPropertyChanged(nameof(CanRefreshSplitRouting));
         OnPropertyChanged(nameof(ShowReconnectHint));
+        ApplyCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
         if (profile?.Id == _loadedProfileId)
             return;
 
@@ -118,7 +125,12 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     }
 
     [RelayCommand(CanExecute = nameof(CanApplySplitRouting))]
-    private async Task ApplyAsync()
+    private Task ApplyAsync() => RunApplyAsync(forceRefresh: false);
+
+    [RelayCommand(CanExecute = nameof(CanRefreshSplitRouting))]
+    private Task RefreshAsync() => RunApplyAsync(forceRefresh: true);
+
+    private async Task RunApplyAsync(bool forceRefresh)
     {
         if (_selectedProfile is null || _applyInProgress)
             return;
@@ -126,6 +138,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         _applyInProgress = true;
         IsApplyingRoutes = true;
         ApplyRoutesStatus = T("Progress_Preparing");
+        OnPropertyChanged(nameof(CanApplySplitRouting));
+        OnPropertyChanged(nameof(CanRefreshSplitRouting));
+        ApplyCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
         using var _ = _refreshScheduler.BeginManualApply();
         try
         {
@@ -144,7 +160,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
 
             var profileId = _selectedProfile.Id;
             var result = await _invoker.InvokeAsync(sp =>
-                sp.GetRequiredService<ApplySplitRoutingHandler>().HandleAsync(profileId, progress));
+                sp.GetRequiredService<ApplySplitRoutingHandler>().HandleAsync(
+                    profileId,
+                    progress,
+                    forceRefresh: forceRefresh));
 
             if (!result.Success)
             {
@@ -154,7 +173,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
 
             CaptureSavedFromUi();
 
-            if (result.RoutesCsv is null)
+            if (result.RoutesCsv is null && !forceRefresh)
             {
                 _toast.ShowInfo(T("Toast_Routes_Unchanged"), Tf("Toast_Routes_Unchanged_Detail", result.RouteCount));
                 return;
@@ -180,7 +199,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             _applyInProgress = false;
             IsApplyingRoutes = false;
             ApplyRoutesStatus = string.Empty;
+            OnPropertyChanged(nameof(CanApplySplitRouting));
+            OnPropertyChanged(nameof(CanRefreshSplitRouting));
             ApplyCommand.NotifyCanExecuteChanged();
+            RefreshCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -188,6 +210,10 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     {
         OnPropertyChanged(nameof(SplitRoutingOptionsEnabled));
         OnPropertyChanged(nameof(TwitchChannelEnabled));
+        OnPropertyChanged(nameof(CanApplySplitRouting));
+        OnPropertyChanged(nameof(CanRefreshSplitRouting));
+        ApplyCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
         OnEdited();
     }
 
@@ -299,7 +325,9 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         var current = BuildFromUi();
         HasUnappliedChanges = _saved is null || !SettingsEqual(_saved, current);
         OnPropertyChanged(nameof(CanApplySplitRouting));
+        OnPropertyChanged(nameof(CanRefreshSplitRouting));
         ApplyCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 
     private static bool SettingsEqual(SplitRoutingSettings left, SplitRoutingSettings right) =>
@@ -326,6 +354,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             nameof(SplitTunnelDnsLabel),
             nameof(SplitTunnelDnsHint),
             nameof(SplitApplyLabel),
+            nameof(SplitRefreshLabel),
             nameof(SplitHintCloudflare),
             nameof(SplitHintTwitch),
             nameof(SplitHintDnsRemoved),

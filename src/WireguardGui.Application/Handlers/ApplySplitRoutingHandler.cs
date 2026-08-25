@@ -17,11 +17,12 @@ public sealed class ApplySplitRoutingHandler(
     public async Task<SplitRoutingResultDto> HandleAsync(
         string profileId,
         IProgress<SplitRoutingProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool forceRefresh = false)
     {
         try
         {
-            return await HandleCoreAsync(profileId, progress, cancellationToken).ConfigureAwait(false);
+            return await HandleCoreAsync(profileId, progress, cancellationToken, forceRefresh).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -33,7 +34,8 @@ public sealed class ApplySplitRoutingHandler(
     private async Task<SplitRoutingResultDto> HandleCoreAsync(
         string profileId,
         IProgress<SplitRoutingProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool forceRefresh)
     {
         var profile = await profileStore.GetProfileAsync(profileId, cancellationToken);
         if (profile is null)
@@ -42,7 +44,10 @@ public sealed class ApplySplitRoutingHandler(
         if (!profile.SplitRouting.Enabled)
             return new SplitRoutingResultDto(false, 0, null, "Split routing is disabled");
 
-        logger.LogInformation("Applying split routing for {Profile}", profile.Name);
+        logger.LogInformation(
+            "Applying split routing for {Profile} (forceRefresh={Force})",
+            profile.Name,
+            forceRefresh);
 
         var backend = backendFactory.GetBackend(profile.Backend);
         var wasConnected = await backend.GetConnectionStateAsync(profile, cancellationToken) == ConnectionState.Connected;
@@ -64,7 +69,8 @@ public sealed class ApplySplitRoutingHandler(
                 configUpdate,
                 wasConnected,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                forceRefresh);
 
         return await ApplyLegacyRoutingAsync(
             profileId,
@@ -83,7 +89,8 @@ public sealed class ApplySplitRoutingHandler(
         SplitRoutingConfigUpdateResult configUpdate,
         bool wasConnected,
         IProgress<SplitRoutingProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool forceRefresh)
     {
         if (!wasConnected)
         {
@@ -119,7 +126,8 @@ public sealed class ApplySplitRoutingHandler(
         var syncResult = await policyRoutingSetup.SyncRoutesAsync(
             profile,
             configUpdate.Routes ?? [],
-            cancellationToken);
+            cancellationToken,
+            force: forceRefresh);
         if (syncResult.ErrorMessage is not null)
             return new SplitRoutingResultDto(false, configUpdate.RouteCount, null, syncResult.ErrorMessage);
 

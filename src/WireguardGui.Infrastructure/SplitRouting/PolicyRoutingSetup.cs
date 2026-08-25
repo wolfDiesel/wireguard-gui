@@ -63,7 +63,8 @@ public sealed class PolicyRoutingSetup(
     public async Task<PolicyRoutingSyncResult> SyncRoutesAsync(
         VpnProfile profile,
         IReadOnlyList<string> routes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool force = false)
     {
         if (!IsAvailable)
             return new PolicyRoutingSyncResult(false, "Policy routing requires ip");
@@ -75,7 +76,8 @@ public sealed class PolicyRoutingSetup(
                 return new PolicyRoutingSyncResult(false, "WireGuard interface not found");
 
             var key = PolicyRoutingNaming.NormalizeRoutesKey(routes);
-            var unchanged = _syncedRoutes.TryGetValue(profile.Id, out var previous) &&
+            var unchanged = !force &&
+                _syncedRoutes.TryGetValue(profile.Id, out var previous) &&
                 string.Equals(previous, key, StringComparison.Ordinal);
 
             if (unchanged)
@@ -93,9 +95,10 @@ public sealed class PolicyRoutingSetup(
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = key;
             logger.LogInformation(
-                "Policy routing synced for {Profile} ({Count} routes)",
+                "Policy routing synced for {Profile} ({Count} routes, force={Force})",
                 profile.Name,
-                routes.Count);
+                routes.Count,
+                force);
             return new PolicyRoutingSyncResult(true, null);
         }
         catch (Exception ex)

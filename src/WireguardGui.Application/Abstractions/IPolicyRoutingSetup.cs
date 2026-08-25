@@ -14,7 +14,8 @@ public interface IPolicyRoutingSetup
     Task<PolicyRoutingSyncResult> SyncRoutesAsync(
         VpnProfile profile,
         IReadOnlyList<string> routes,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool force = false);
 
     Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default);
 

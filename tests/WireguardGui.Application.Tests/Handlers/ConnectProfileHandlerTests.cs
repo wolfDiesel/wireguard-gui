@@ -105,7 +105,8 @@ public class ConnectProfileHandlerTests
         public Task<PolicyRoutingSyncResult> SyncRoutesAsync(
             VpnProfile profile,
             IReadOnlyList<string> routes,
-            CancellationToken cancellationToken = default) =>
+            CancellationToken cancellationToken = default,
+            bool force = false) =>
             Task.FromResult(new PolicyRoutingSyncResult(false, null));
 
         public Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>

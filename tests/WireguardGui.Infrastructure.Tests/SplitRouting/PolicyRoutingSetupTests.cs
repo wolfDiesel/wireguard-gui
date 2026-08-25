@@ -58,6 +58,25 @@ public class PolicyRoutingSetupTests
     }
 
     [Fact]
+    public async Task SyncRoutesAsync_ForceReinstallsRulesWhenUnchanged()
+    {
+        var runner = new TrackingProcessRunner();
+        var context = CreateContext(runner);
+        var routes = new[] { "1.1.1.1/32" };
+        var table = PolicyRoutingNaming.RoutingTableId(context.Profile.Id).ToString();
+
+        await context.Setup.ApplyAsync(context.Profile, routes);
+        runner.PrivilegedCommands.Clear();
+
+        var sync = await context.Setup.SyncRoutesAsync(context.Profile, routes, force: true);
+
+        Assert.True(sync.RoutesChanged);
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => MatchesIp(c, "rule", "add", "pref", "100", "to", "1.1.1.1/32", "lookup", table));
+    }
+
+    [Fact]
     public async Task ApplyAsync_ClearsOrphanManagedTables()
     {
         var keep = PolicyRoutingNaming.RoutingTableId("fixed-profile-id");

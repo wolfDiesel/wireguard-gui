@@ -127,6 +127,9 @@
                 <controls:AppButton Variant="Primary" Content="{Binding SplitApplyLabel}"
                         Command="{Binding ApplyCommand}"
                         IsEnabled="{Binding CanApplySplitRouting}" />
+                <controls:AppButton Variant="Ghost" Content="{Binding SplitRefreshLabel}"
+                        Command="{Binding RefreshCommand}"
+                        IsEnabled="{Binding CanRefreshSplitRouting}" />
               </StackPanel>
             </StackPanel>
           </Border>

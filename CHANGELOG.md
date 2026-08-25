@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.4] - 2026-08-25
+
+### Added
+
+- Split routing: **Refresh routes** button force-rebuilds destination rules without toggling sources.
+
 ## [1.4.3] - 2026-08-25
 
 ### Fixed

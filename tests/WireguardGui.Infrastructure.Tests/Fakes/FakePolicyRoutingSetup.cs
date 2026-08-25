@@ -36,7 +36,8 @@ internal sealed class FakePolicyRoutingSetup : IPolicyRoutingSetup
     public Task<PolicyRoutingSyncResult> SyncRoutesAsync(
         VpnProfile profile,
         IReadOnlyList<string> routes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool force = false)
     {
         SyncedRoutes.Add(routes);
         return Task.FromResult(new PolicyRoutingSyncResult(true, null));
