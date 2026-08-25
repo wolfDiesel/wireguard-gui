@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.3] - 2026-08-25
+
+### Fixed
+
+- Twitch HLS discovery: updated PlaybackAccessToken GQL query and usher v2; parse SESSION-DATA / base64 hosts so CDN edges are routed (restores 1080p).
+- Policy routing table id is stable across process restarts (SHA-256 instead of randomized `GetHashCode`); orphan `ip rule` tables are cleaned on apply.
+- After sleep/refresh with unchanged routes: re-install table default route and tunnel DNS instead of no-oping.
+
 ## [1.4.2] - 2026-08-25
 
 ### Added

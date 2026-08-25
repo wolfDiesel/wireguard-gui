@@ -41,6 +41,7 @@ public sealed class PolicyRoutingSetup(
                 return new PolicyRoutingApplyResult(false, "WireGuard interface not found");
 
             await EnsureNmcliNeverDefaultAsync(profile, reconnect: true, cancellationToken).ConfigureAwait(false);
+            await CleanupOrphanPolicyTablesAsync(profile, cancellationToken).ConfigureAwait(false);
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
             await EnsureEndpointRouteAsync(profile, cancellationToken).ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
@@ -67,19 +68,26 @@ public sealed class PolicyRoutingSetup(
         if (!IsAvailable)
             return new PolicyRoutingSyncResult(false, "Policy routing requires ip");
 
-        var key = PolicyRoutingNaming.NormalizeRoutesKey(routes);
-        if (_syncedRoutes.TryGetValue(profile.Id, out var previous) &&
-            string.Equals(previous, key, StringComparison.Ordinal))
-        {
-            logger.LogInformation("Policy routing {Profile}: routes unchanged ({Count})", profile.Name, routes.Count);
-            return new PolicyRoutingSyncResult(false, null);
-        }
-
         try
         {
             var iface = await ResolveWireGuardInterfaceAsync(profile, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(iface))
                 return new PolicyRoutingSyncResult(false, "WireGuard interface not found");
+
+            var key = PolicyRoutingNaming.NormalizeRoutesKey(routes);
+            var unchanged = _syncedRoutes.TryGetValue(profile.Id, out var previous) &&
+                string.Equals(previous, key, StringComparison.Ordinal);
+
+            if (unchanged)
+            {
+                await EnsurePolicyTableDefaultRouteAsync(profile, iface, cancellationToken).ConfigureAwait(false);
+                await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
+                logger.LogInformation(
+                    "Policy routing {Profile}: routes unchanged ({Count}), refreshed table baseline and DNS",
+                    profile.Name,
+                    routes.Count);
+                return new PolicyRoutingSyncResult(false, null);
+            }
 
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
@@ -212,6 +220,69 @@ public sealed class PolicyRoutingSetup(
             .ConfigureAwait(false);
         await RunIpPrivilegedIgnoringErrorsAsync(["-6", "rule", "flush", "table", tableText], cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private async Task EnsurePolicyTableDefaultRouteAsync(
+        VpnProfile profile,
+        string iface,
+        CancellationToken cancellationToken)
+    {
+        var tableText = PolicyRoutingNaming.RoutingTableId(profile.Id).ToString();
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["route", "replace", "default", "dev", iface, "table", tableText],
+            cancellationToken).ConfigureAwait(false);
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["-6", "route", "replace", "default", "dev", iface, "table", tableText],
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task CleanupOrphanPolicyTablesAsync(VpnProfile profile, CancellationToken cancellationToken)
+    {
+        var keepTable = PolicyRoutingNaming.RoutingTableId(profile.Id);
+        var listed = await processRunner.RunAsync("ip", ["rule", "list"], cancellationToken)
+            .ConfigureAwait(false);
+        if (!listed.IsSuccess)
+            return;
+
+        var orphans = new HashSet<int>();
+        foreach (var line in listed.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = line.TrimStart();
+            if (!trimmed.StartsWith($"{RulePreference}:", StringComparison.Ordinal))
+                continue;
+
+            var lookupIndex = trimmed.LastIndexOf("lookup ", StringComparison.Ordinal);
+            if (lookupIndex < 0)
+                continue;
+
+            var tableText = trimmed[(lookupIndex + "lookup ".Length)..].Trim();
+            var space = tableText.IndexOf(' ');
+            if (space > 0)
+                tableText = tableText[..space];
+
+            if (!int.TryParse(tableText, out var table))
+                continue;
+            if (!PolicyRoutingNaming.IsManagedRoutingTable(table) || table == keepTable)
+                continue;
+
+            orphans.Add(table);
+        }
+
+        foreach (var table in orphans)
+        {
+            logger.LogInformation(
+                "Policy routing {Profile}: clearing orphan table {Table} (keep {Keep})",
+                profile.Name,
+                table,
+                keepTable);
+            await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
+            await RunIpPrivilegedIgnoringErrorsAsync(
+                ["route", "flush", "table", table.ToString()],
+                cancellationToken).ConfigureAwait(false);
+            await RunIpPrivilegedIgnoringErrorsAsync(
+                ["-6", "route", "flush", "table", table.ToString()],
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task<bool> IsInterfaceIpv6CapableAsync(string iface, CancellationToken cancellationToken)

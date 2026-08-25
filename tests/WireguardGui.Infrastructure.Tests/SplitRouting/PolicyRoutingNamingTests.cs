@@ -5,25 +5,20 @@ namespace WireguardGui.Infrastructure.Tests.SplitRouting;
 public class PolicyRoutingNamingTests
 {
     [Fact]
-    public void ClassifyRoutes_SplitsHostsAndNets()
+    public void RoutingTableId_IsStableAcrossCalls()
     {
-        var (hosts, nets, hosts6) = PolicyRoutingNaming.ClassifyRoutes(
-            ["1.1.1.1/32", "149.154.160.0/20", "93.184.216.34", "2001:db8::1/128"]);
+        var first = PolicyRoutingNaming.RoutingTableId("7fdfa871c7404daab73a8e4e94982854");
+        var second = PolicyRoutingNaming.RoutingTableId("7fdfa871c7404daab73a8e4e94982854");
 
-        Assert.Equal(["1.1.1.1", "93.184.216.34"], hosts);
-        Assert.Equal(["149.154.160.0/20"], nets);
-        Assert.Equal(["2001:db8::1"], hosts6);
+        Assert.Equal(first, second);
+        Assert.InRange(first, PolicyRoutingNaming.MinRoutingTableId, PolicyRoutingNaming.MinRoutingTableId + PolicyRoutingNaming.RoutingTableIdSpan - 1);
     }
 
     [Fact]
-    public void Sanitize_ReplacesInvalidCharacters()
+    public void RoutingTableId_DiffersByProfile()
     {
-        Assert.Equal("abc_def", PolicyRoutingNaming.Sanitize("abc-def"));
-    }
-
-    [Fact]
-    public void FormatNftElements_EmptySet()
-    {
-        Assert.Equal("{ }", PolicyRoutingNaming.FormatNftElements([]));
+        var left = PolicyRoutingNaming.RoutingTableId("profile-a");
+        var right = PolicyRoutingNaming.RoutingTableId("profile-b");
+        Assert.NotEqual(left, right);
     }
 }

@@ -59,6 +59,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
     public bool FailRouteFlush { get; init; }
     public string WgInterfaces { get; init; } = "wg0";
     public string DefaultRoute { get; init; } = "default via 192.168.1.1 dev eth0";
+    public string RuleListOutput { get; init; } = string.Empty;
 
     public bool IsCommandAvailable(string command) => command switch
     {
@@ -74,6 +75,14 @@ internal sealed class TrackingProcessRunner : IProcessRunner
     {
         if (fileName == "wg" && arguments.Count >= 2 && arguments[0] == "show" && arguments[1] == "interfaces")
             return Task.FromResult(new ProcessResult(0, WgInterfaces, string.Empty));
+
+        if (fileName == "ip" && arguments.Count >= 1 &&
+            string.Equals(arguments[0], "rule", StringComparison.Ordinal) &&
+            arguments.Count >= 2 &&
+            string.Equals(arguments[1], "list", StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ProcessResult(0, RuleListOutput, string.Empty));
+        }
 
         if (fileName == "ip" && arguments.Count >= 4 &&
             string.Equals(arguments[0], "-6", StringComparison.Ordinal) &&

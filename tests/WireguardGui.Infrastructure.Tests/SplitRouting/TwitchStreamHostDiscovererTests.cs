@@ -20,4 +20,21 @@ public class TwitchStreamHostDiscovererTests
         Assert.Contains("eun11.playlist.ttvnw.net", hosts);
         Assert.Contains("e8d2b6296c88.j.cloudfront.hls.ttvnw.net", hosts);
     }
+
+    [Fact]
+    public void ExtractHosts_ParsesSessionDataAndBase64Urls()
+    {
+        var liveVideo = Convert.ToBase64String(
+            global::System.Text.Encoding.UTF8.GetBytes("https://1d144e.rufio.hls.live-video.net/v1/segment/x.ts"));
+        var playlist = $"""
+            #EXTM3U
+            #EXT-X-SESSION-DATA:DATA-ID="NODE",VALUE="e8d2b6296c88.j.cloudfront.hls.ttvnw.net"
+            #EXT-X-SESSION-DATA:DATA-ID="C",VALUE="{liveVideo}"
+            """;
+
+        var hosts = TwitchStreamHostDiscoverer.ExtractHosts(playlist);
+
+        Assert.Contains("e8d2b6296c88.j.cloudfront.hls.ttvnw.net", hosts);
+        Assert.Contains("1d144e.rufio.hls.live-video.net", hosts);
+    }
 }

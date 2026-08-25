@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -6,6 +8,8 @@ namespace WireguardGui.Infrastructure.SplitRouting;
 internal static partial class PolicyRoutingNaming
 {
     public const string NftTable = "wireguard_gui";
+    public const int MinRoutingTableId = 100;
+    public const int RoutingTableIdSpan = 800;
 
     public static string Sanitize(string profileId) =>
         SanitizePattern().Replace(profileId, "_");
@@ -18,11 +22,22 @@ internal static partial class PolicyRoutingNaming
 
     public static string ChainName(string profileId) => $"split_{Sanitize(profileId)}";
 
-    public static int RoutingTableId(string profileId) =>
-        100 + Math.Abs(profileId.GetHashCode(StringComparison.Ordinal)) % 800;
+    public static int RoutingTableId(string profileId)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes("wg-gui-table:" + profileId));
+        var value = BinaryPrimitives.ReadUInt32LittleEndian(hash);
+        return MinRoutingTableId + (int)(value % RoutingTableIdSpan);
+    }
 
-    public static uint FwMark(string profileId) =>
-        (uint)(0x77770000 | (Math.Abs(profileId.GetHashCode(StringComparison.Ordinal)) & 0xffff));
+    public static uint FwMark(string profileId)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes("wg-gui-fwmark:" + profileId));
+        var value = BinaryPrimitives.ReadUInt32LittleEndian(hash);
+        return 0x77770000u | (value & 0xffff);
+    }
+
+    public static bool IsManagedRoutingTable(int table) =>
+        table >= MinRoutingTableId && table < MinRoutingTableId + RoutingTableIdSpan;
 
     public static string FormatNftElements(IReadOnlyList<string> routes)
     {
