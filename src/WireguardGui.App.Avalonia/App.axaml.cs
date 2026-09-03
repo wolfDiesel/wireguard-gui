@@ -87,6 +87,12 @@ public partial class App : global::Avalonia.Application
             profilesVm.StopPolling();
             if (AppServices.GetRequired<IProcessRunner>() is IAsyncDisposable processRunner)
                 await processRunner.DisposeAsync();
+            if (AppServices.GetRequired<IDomainRouteDnsProxy>() is IAsyncDisposable dnsProxy)
+                await dnsProxy.DisposeAsync();
+            if (AppServices.GetRequired<IResolvedDnsRouteMonitor>() is IAsyncDisposable dnsMonitor)
+                await dnsMonitor.DisposeAsync();
+            if (AppServices.GetRequired<ISystemResumeWatcher>() is IAsyncDisposable resumeWatcher)
+                await resumeWatcher.DisposeAsync();
             if (_desktopSession is not null)
                 await _desktopSession.DisposeAsync();
         };

@@ -345,6 +345,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             if (row is null)
                 continue;
 
+            var wasConnected = row.State == ConnectionState.Connected;
             row.Name = item.Name;
             row.ConnectionName = item.ConnectionName;
             row.Backend = item.Backend;
@@ -352,6 +353,16 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             row.SplitRoutingEnabled = item.SplitRoutingEnabled;
             if (ReferenceEquals(SelectedProfile, row))
                 OnSelectedProfileActionsChanged();
+
+            if (!wasConnected && item.State == ConnectionState.Connected && item.SplitRoutingEnabled)
+            {
+                _refreshScheduler.NotifyProfileConnected(item.Id);
+                _refreshScheduler.RequestForceRefresh();
+            }
+            else if (wasConnected && item.State != ConnectionState.Connected)
+            {
+                _refreshScheduler.NotifyProfileDisconnected(item.Id);
+            }
         }
 
         UpdateStatusBar(items);

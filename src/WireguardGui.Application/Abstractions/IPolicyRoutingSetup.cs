@@ -17,6 +17,11 @@ public interface IPolicyRoutingSetup
         CancellationToken cancellationToken = default,
         bool force = false);
 
+    Task AddHostRoutesAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> hostCidrs,
+        CancellationToken cancellationToken = default);
+
     Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default);
 
     Task PrepareConnectionAsync(VpnProfile profile, CancellationToken cancellationToken = default);

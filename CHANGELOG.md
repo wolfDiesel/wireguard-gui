@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.5] - 2026-09-03
+
+### Added
+
+- Parallel systemd-resolved DNS monitor: privileged `resolvectl monitor` over the shared pkexec session; matched Twitch/YouTube/custom answers install batched `ip rule to <IP>/32`.
+- After system resume (logind `PrepareForSleep`) and VPN reconnect, split routing is force-refreshed while connected.
+
+### Fixed
+
+- Do not point systemd-resolved at a local DNS proxy for all domains (that broke name resolution).
+- Revert policy data-path to `ip rule to <CIDR>` — nft fwmark marking did not apply on this host, so Telegram/Twitch went direct.
+
+### Changed
+
+- Quiet Debug logs for routine privileged `ip rule` / `ip route` one-liners during sync.
+
 ## [1.4.4] - 2026-08-25
 
 ### Added

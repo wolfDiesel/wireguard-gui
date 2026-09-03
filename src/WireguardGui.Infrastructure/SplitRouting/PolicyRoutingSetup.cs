@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
@@ -9,11 +12,15 @@ public sealed class PolicyRoutingSetup(
     IProcessRunner processRunner,
     IProfileStore profileStore,
     IWireGuardConfigParser configParser,
+    IDomainRouteDnsProxy dnsProxy,
     ILogger<PolicyRoutingSetup> logger) : IPolicyRoutingSetup
 {
     private const int RulePreference = 100;
 
     private readonly ConcurrentDictionary<string, string> _syncedRoutes = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _interfaces = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _installedHosts =
+        new(StringComparer.Ordinal);
 
     public bool IsAvailable => processRunner.IsCommandAvailable("ip");
 
@@ -42,10 +49,13 @@ public sealed class PolicyRoutingSetup(
 
             await EnsureNmcliNeverDefaultAsync(profile, reconnect: true, cancellationToken).ConfigureAwait(false);
             await CleanupOrphanPolicyTablesAsync(profile, cancellationToken).ConfigureAwait(false);
+            await CleanupBrokenNftMarkPathAsync(profile, cancellationToken).ConfigureAwait(false);
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
             await EnsureEndpointRouteAsync(profile, cancellationToken).ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = PolicyRoutingNaming.NormalizeRoutesKey(routes);
+            _interfaces[profile.Id] = iface;
+            RememberInstalledHosts(profile.Id, routes);
             logger.LogInformation(
                 "Policy routing applied for {Profile} on {Interface} ({Count} routes)",
                 profile.Name,
@@ -91,9 +101,12 @@ public sealed class PolicyRoutingSetup(
                 return new PolicyRoutingSyncResult(false, null);
             }
 
+            await CleanupBrokenNftMarkPathAsync(profile, cancellationToken).ConfigureAwait(false);
             await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = key;
+            _interfaces[profile.Id] = iface;
+            RememberInstalledHosts(profile.Id, routes);
             logger.LogInformation(
                 "Policy routing synced for {Profile} ({Count} routes, force={Force})",
                 profile.Name,
@@ -114,11 +127,11 @@ public sealed class PolicyRoutingSetup(
             return;
 
         _syncedRoutes.TryRemove(profile.Id, out _);
+        _interfaces.TryRemove(profile.Id, out _);
+        _installedHosts.TryRemove(profile.Id, out _);
+        await dnsProxy.StopAsync(cancellationToken).ConfigureAwait(false);
 
         var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
-        var mark = FormatFwMark(PolicyRoutingNaming.FwMark(profile.Id));
-        var chain = PolicyRoutingNaming.ChainName(profile.Id);
-        var nftTable = PolicyRoutingNaming.NftTable;
 
         await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
         var iface = await ResolveWireGuardInterfaceAsync(profile, cancellationToken).ConfigureAwait(false);
@@ -131,29 +144,144 @@ public sealed class PolicyRoutingSetup(
         await RunIpPrivilegedIgnoringErrorsAsync(
             ["-6", "route", "flush", "table", table.ToString()],
             cancellationToken).ConfigureAwait(false);
-        await RunIpPrivilegedIgnoringErrorsAsync(["rule", "flush", "fwmark", mark], cancellationToken)
-            .ConfigureAwait(false);
-        await RunIpPrivilegedIgnoringErrorsAsync(["-6", "rule", "flush", "fwmark", mark], cancellationToken)
-            .ConfigureAwait(false);
-        await RunPrivilegedIgnoringErrorsAsync(
-            "nft",
-            ["delete", "chain", "inet", nftTable, chain],
-            cancellationToken).ConfigureAwait(false);
-        await RunPrivilegedIgnoringErrorsAsync(
-            "nft",
-            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.HostsSetName(profile.Id)],
-            cancellationToken).ConfigureAwait(false);
-        await RunPrivilegedIgnoringErrorsAsync(
-            "nft",
-            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.NetsSetName(profile.Id)],
-            cancellationToken).ConfigureAwait(false);
-        await RunPrivilegedIgnoringErrorsAsync(
-            "nft",
-            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.Hosts6SetName(profile.Id)],
-            cancellationToken).ConfigureAwait(false);
+        await CleanupBrokenNftMarkPathAsync(profile, cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Policy routing torn down for {Profile}", profile.Name);
     }
+
+    public async Task AddHostRoutesAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> hostCidrs,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsAvailable || hostCidrs.Count == 0)
+            return;
+
+        var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
+        var tableText = table.ToString();
+        var installed = _installedHosts.GetOrAdd(
+            profile.Id,
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal));
+
+        var pending = new List<string>();
+        foreach (var cidr in hostCidrs)
+        {
+            var trimmed = NormalizeHostCidr(cidr);
+            if (trimmed is null)
+                continue;
+            if (!installed.TryAdd(trimmed, 0))
+                continue;
+            pending.Add(trimmed);
+        }
+
+        if (pending.Count == 0)
+            return;
+
+        if (!_interfaces.TryGetValue(profile.Id, out var iface) || string.IsNullOrWhiteSpace(iface))
+        {
+            iface = await ResolveWireGuardInterfaceAsync(profile, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(iface))
+            {
+                foreach (var item in pending)
+                    installed.TryRemove(item, out _);
+                return;
+            }
+
+            _interfaces[profile.Id] = iface;
+        }
+
+        var script = BuildAddHostRulesScript(pending, tableText, iface);
+        var result = await processRunner.RunPrivilegedShellAsync(script, cancellationToken)
+            .ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            foreach (var item in pending)
+                installed.TryRemove(item, out _);
+            logger.LogWarning(
+                "Policy routing {Profile}: failed to add {Count} monitored hosts: {Error}",
+                profile.Name,
+                pending.Count,
+                result.StandardError.Trim());
+            return;
+        }
+
+        logger.LogInformation(
+            "Policy routing {Profile}: added {Count} monitored host routes via shared privileged session",
+            profile.Name,
+            pending.Count);
+    }
+
+    private void RememberInstalledHosts(string profileId, IReadOnlyList<string> routes)
+    {
+        var installed = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+        foreach (var route in routes)
+        {
+            var normalized = NormalizeHostCidr(route);
+            if (normalized is not null)
+                installed[normalized] = 0;
+        }
+
+        _installedHosts[profileId] = installed;
+    }
+
+    private static string? NormalizeHostCidr(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var trimmed = value.Trim();
+        if (trimmed.Contains(':', StringComparison.Ordinal))
+        {
+            if (trimmed.EndsWith("/128", StringComparison.Ordinal))
+                return IPAddress.TryParse(trimmed[..^4], out _) ? trimmed : null;
+            if (IPAddress.TryParse(trimmed, out var ip6) && ip6.AddressFamily == AddressFamily.InterNetworkV6)
+                return ip6 + "/128";
+            return null;
+        }
+
+        if (trimmed.EndsWith("/32", StringComparison.Ordinal))
+            return IPAddress.TryParse(trimmed[..^3], out _) ? trimmed : null;
+        if (IPAddress.TryParse(trimmed, out var ip4) && ip4.AddressFamily == AddressFamily.InterNetwork)
+            return ip4 + "/32";
+        return null;
+    }
+
+    private static string BuildAddHostRulesScript(IReadOnlyList<string> cidrs, string tableText, string iface)
+    {
+        var builder = new StringBuilder();
+        foreach (var cidr in cidrs)
+        {
+            if (cidr.Contains(':', StringComparison.Ordinal))
+            {
+                builder.Append("ip -6 rule add pref ")
+                    .Append(RulePreference)
+                    .Append(" to ")
+                    .Append(ShellEscape(cidr))
+                    .Append(" lookup ")
+                    .Append(tableText)
+                    .Append(" 2>/dev/null || true\n");
+            }
+            else
+            {
+                builder.Append("ip rule add pref ")
+                    .Append(RulePreference)
+                    .Append(" to ")
+                    .Append(ShellEscape(cidr))
+                    .Append(" lookup ")
+                    .Append(tableText)
+                    .Append(" 2>/dev/null || true\n");
+            }
+        }
+
+        builder.Append("ip route replace default dev ")
+            .Append(ShellEscape(iface))
+            .Append(" table ")
+            .Append(tableText)
+            .Append(" 2>/dev/null || true\n");
+        return builder.ToString();
+    }
+
+    private static string ShellEscape(string value) => "'" + value.Replace("'", "'\\''") + "'";
 
     private async Task SyncDestinationRulesAsync(
         VpnProfile profile,
@@ -214,6 +342,38 @@ public sealed class PolicyRoutingSetup(
 
         if (ipv4Routes.Count == 0 && !ipv6Capable)
             throw new InvalidOperationException("No applicable IPv4 routes to install");
+    }
+
+    private async Task CleanupBrokenNftMarkPathAsync(VpnProfile profile, CancellationToken cancellationToken)
+    {
+        var mark = FormatFwMark(PolicyRoutingNaming.FwMark(profile.Id));
+        var chain = PolicyRoutingNaming.ChainName(profile.Id);
+        var nftTable = PolicyRoutingNaming.NftTable;
+
+        await RunIpPrivilegedIgnoringErrorsAsync(["rule", "flush", "fwmark", mark], cancellationToken)
+            .ConfigureAwait(false);
+        await RunIpPrivilegedIgnoringErrorsAsync(["-6", "rule", "flush", "fwmark", mark], cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!processRunner.IsCommandAvailable("nft"))
+            return;
+
+        await RunPrivilegedIgnoringErrorsAsync(
+            "nft",
+            ["delete", "chain", "inet", nftTable, chain],
+            cancellationToken).ConfigureAwait(false);
+        await RunPrivilegedIgnoringErrorsAsync(
+            "nft",
+            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.HostsSetName(profile.Id)],
+            cancellationToken).ConfigureAwait(false);
+        await RunPrivilegedIgnoringErrorsAsync(
+            "nft",
+            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.NetsSetName(profile.Id)],
+            cancellationToken).ConfigureAwait(false);
+        await RunPrivilegedIgnoringErrorsAsync(
+            "nft",
+            ["delete", "set", "inet", nftTable, PolicyRoutingNaming.Hosts6SetName(profile.Id)],
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ClearRulesForTableAsync(int table, CancellationToken cancellationToken)
@@ -428,9 +588,13 @@ public sealed class PolicyRoutingSetup(
             if (server.Contains(':', StringComparison.Ordinal))
                 continue;
 
+            var cidr = $"{server}/32";
             await RunIpPrivilegedIgnoringErrorsAsync(
-                ["rule", "add", "pref", RulePreference.ToString(), "to", $"{server}/32", "lookup", tableText],
+                ["rule", "add", "pref", RulePreference.ToString(), "to", cidr, "lookup", tableText],
                 cancellationToken).ConfigureAwait(false);
+            _installedHosts
+                .GetOrAdd(profile.Id, _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal))
+                [cidr] = 0;
         }
 
         await RunIpPrivilegedIgnoringErrorsAsync(

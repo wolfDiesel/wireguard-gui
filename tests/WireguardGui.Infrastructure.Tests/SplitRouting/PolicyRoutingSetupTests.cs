@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
 using WireguardGui.Infrastructure.SplitRouting;
 using WireguardGui.Infrastructure.Tests.Fakes;
@@ -11,11 +12,8 @@ public class PolicyRoutingSetupTests
     [Fact]
     public void IsAvailable_RequiresIp()
     {
-        var unavailable = CreateContext(new TrackingProcessRunner { IpAvailable = false }).Setup;
-        Assert.False(unavailable.IsAvailable);
-
-        var available = CreateContext(new TrackingProcessRunner()).Setup;
-        Assert.True(available.IsAvailable);
+        Assert.False(CreateContext(new TrackingProcessRunner { IpAvailable = false }).Setup.IsAvailable);
+        Assert.True(CreateContext(new TrackingProcessRunner()).Setup.IsAvailable);
     }
 
     [Fact]
@@ -123,6 +121,7 @@ public class PolicyRoutingSetupTests
 
         Assert.Contains(runner.PrivilegedCommands, c => MatchesIp(c, "rule", "flush", "table", table));
         Assert.Contains(runner.PrivilegedCommands, c => MatchesIp(c, "route", "flush", "table", table));
+        Assert.True(context.DnsProxy.Stopped);
     }
 
     [Fact]
@@ -159,9 +158,6 @@ public class PolicyRoutingSetupTests
         Assert.Contains(
             runner.PrivilegedCommands,
             c => c is { FileName: "resolvectl", Arguments: ["dns", "wg0", "8.8.8.8"] });
-        Assert.Contains(
-            runner.PrivilegedCommands,
-            c => c is { FileName: "resolvectl", Arguments: ["domain", "wg0", "~."] });
         Assert.Contains(
             runner.PrivilegedCommands,
             c => MatchesIp(c, "rule", "add", "pref", "100", "to", "8.8.8.8/32", "lookup",
@@ -207,14 +203,46 @@ public class PolicyRoutingSetupTests
             AllowedIPs = 0.0.0.0/0
             """);
 
+        var dnsProxy = new FakeDomainRouteDnsProxy();
         var setup = new PolicyRoutingSetup(
             runner,
             store,
             new WireGuardConfigParser(),
+            dnsProxy,
             NullLogger<PolicyRoutingSetup>.Instance);
 
-        return new TestContext(setup, profile, root);
+        return new TestContext(setup, profile, root, dnsProxy);
     }
 
-    private sealed record TestContext(PolicyRoutingSetup Setup, VpnProfile Profile, string Root);
+    private sealed record TestContext(
+        PolicyRoutingSetup Setup,
+        VpnProfile Profile,
+        string Root,
+        FakeDomainRouteDnsProxy DnsProxy);
+
+    private sealed class FakeDomainRouteDnsProxy : IDomainRouteDnsProxy
+    {
+        public bool Started { get; private set; }
+        public bool Stopped { get; private set; }
+        public bool IsRunning => Started && !Stopped;
+
+        public Task StartAsync(
+            string profileId,
+            IReadOnlyList<string> suffixes,
+            IReadOnlyList<string> upstreamDns,
+            Func<IReadOnlyList<string>, CancellationToken, Task> onResolvedHosts,
+            CancellationToken cancellationToken = default)
+        {
+            Started = true;
+            Stopped = false;
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            Stopped = true;
+            Started = false;
+            return Task.CompletedTask;
+        }
+    }
 }

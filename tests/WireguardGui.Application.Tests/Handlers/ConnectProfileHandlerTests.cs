@@ -109,6 +109,12 @@ public class ConnectProfileHandlerTests
             bool force = false) =>
             Task.FromResult(new PolicyRoutingSyncResult(false, null));
 
+        public Task AddHostRoutesAsync(
+            VpnProfile profile,
+            IReadOnlyList<string> hostCidrs,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
         public Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
     }

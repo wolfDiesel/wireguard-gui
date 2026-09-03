@@ -14,6 +14,8 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
     private readonly HandlerInvoker _invoker;
     private readonly AppToastService _toast;
     private readonly LocalizationService _localization;
+    private readonly ISystemResumeWatcher _resumeWatcher;
+    private readonly IResolvedDnsRouteMonitor _dnsRouteMonitor;
     private readonly ILogger<SplitRoutingRefreshScheduler> _logger;
     private readonly object _gate = new();
     private readonly SemaphoreSlim _runLock = new(1, 1);
@@ -22,6 +24,7 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
     private string? _watchedProfileId;
     private int _manualApplyDepth;
     private bool _disposed;
+    private bool _resumeHooked;
     private TimeSpan _interval = TimeSpan.FromMinutes(AppSettings.DefaultRefreshMinutes);
 
     public SplitRoutingRefreshScheduler(
@@ -29,14 +32,19 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         HandlerInvoker invoker,
         AppToastService toast,
         LocalizationService localization,
+        ISystemResumeWatcher resumeWatcher,
+        IResolvedDnsRouteMonitor dnsRouteMonitor,
         ILogger<SplitRoutingRefreshScheduler> logger)
     {
         _services = services;
         _invoker = invoker;
         _toast = toast;
         _localization = localization;
+        _resumeWatcher = resumeWatcher;
+        _dnsRouteMonitor = dnsRouteMonitor;
         _logger = logger;
         _ = LoadIntervalAsync();
+        EnsureResumeHook();
     }
 
     public void ApplyRefreshInterval(int minutes)
@@ -68,6 +76,7 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         }
 
         _ = StartWatchingAsync(profileId);
+        _ = StartDnsMonitorAsync(profileId);
 
         _logger.LogInformation("Split routing refresh watching profile {ProfileId}", profileId);
     }
@@ -86,6 +95,8 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
             _watchedProfileId = null;
             StopTimerLocked();
         }
+
+        _ = _dnsRouteMonitor.StopAsync();
     }
 
     public void Stop()
@@ -95,7 +106,11 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
             _watchedProfileId = null;
             StopTimerLocked();
         }
+
+        _ = _dnsRouteMonitor.StopAsync();
     }
+
+    public void RequestForceRefresh() => _ = RefreshTickAsync(force: true);
 
     public IDisposable BeginManualApply()
     {
@@ -113,7 +128,48 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         _disposed = true;
         Stop();
         _runLock.Dispose();
-        return ValueTask.CompletedTask;
+        return _dnsRouteMonitor is IAsyncDisposable disposable
+            ? disposable.DisposeAsync()
+            : ValueTask.CompletedTask;
+    }
+
+    private async Task StartDnsMonitorAsync(string profileId)
+    {
+        try
+        {
+            var store = _services.GetRequiredService<IProfileStore>();
+            var profile = await store.GetProfileAsync(profileId).ConfigureAwait(false);
+            if (profile is null)
+                return;
+
+            lock (_gate)
+            {
+                if (!string.Equals(_watchedProfileId, profileId, StringComparison.Ordinal))
+                    return;
+            }
+
+            await _dnsRouteMonitor.StartAsync(profile).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to start resolved DNS route monitor");
+        }
+    }
+
+    private void EnsureResumeHook()
+    {
+        lock (_gate)
+        {
+            if (_resumeHooked)
+                return;
+            _resumeHooked = true;
+        }
+
+        _resumeWatcher.Start(async ct =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
+            await RefreshTickAsync(force: true).ConfigureAwait(false);
+        });
     }
 
     private async Task LoadIntervalAsync()
@@ -168,9 +224,9 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         _timer = null;
     }
 
-    private void OnTick(object? sender, EventArgs e) => _ = RefreshTickAsync();
+    private void OnTick(object? sender, EventArgs e) => _ = RefreshTickAsync(force: false);
 
-    private async Task RefreshTickAsync()
+    private async Task RefreshTickAsync(bool force)
     {
         string? profileId;
         lock (_gate)
@@ -187,7 +243,13 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         {
             var store = _services.GetRequiredService<IProfileStore>();
             var profile = await store.GetProfileAsync(profileId).ConfigureAwait(false);
-            if (profile is null || !profile.SplitRouting.NeedsDnsRouteRefresh)
+            if (profile is null)
+                return;
+
+            if (!force && !profile.SplitRouting.NeedsDnsRouteRefresh)
+                return;
+
+            if (!profile.SplitRouting.Enabled)
                 return;
 
             var backend = _services.GetRequiredService<IWireGuardBackendFactory>().GetBackend(profile.Backend);
@@ -198,18 +260,24 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
                 return;
             }
 
-            _logger.LogInformation("Background split routing refresh for {Profile}", profile.Name);
+            _logger.LogInformation(
+                "{Mode} split routing refresh for {Profile}",
+                force ? "Forced" : "Background",
+                profile.Name);
             var result = await _invoker.InvokeAsync(sp =>
-                sp.GetRequiredService<ApplySplitRoutingHandler>().HandleAsync(profileId)).ConfigureAwait(false);
+                sp.GetRequiredService<ApplySplitRoutingHandler>()
+                    .HandleAsync(profileId, forceRefresh: force)).ConfigureAwait(false);
 
             if (!result.Success)
             {
                 _logger.LogWarning(
-                    "Background split routing refresh failed for {Profile}: {Error}",
+                    "Split routing refresh failed for {Profile}: {Error}",
                     profile.Name,
                     result.ErrorMessage);
                 return;
             }
+
+            await _dnsRouteMonitor.StartAsync(profile).ConfigureAwait(false);
 
             if (result.RoutesCsv is null)
                 return;
@@ -221,7 +289,7 @@ internal sealed class SplitRoutingRefreshScheduler : ISplitRoutingRefreshSchedul
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Background split routing refresh error");
+            _logger.LogWarning(ex, "Split routing refresh error");
         }
         finally
         {

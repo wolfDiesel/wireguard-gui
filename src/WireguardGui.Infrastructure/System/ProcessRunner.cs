@@ -51,7 +51,8 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
             return await RunCoreAsync("bash", ["-c", script], cancellationToken, timeout: null)
                 .ConfigureAwait(false);
 
-        logger.LogDebug("Privileged command: {Script}", script);
+        if (!IsNoisyPrivilegedScript(script))
+            logger.LogDebug("Privileged shell: {Summary}", SummarizePrivilegedScript(script));
         var session = GetPrivilegedSession();
         return await session.ExecuteAsync(script, cancellationToken).ConfigureAwait(false);
     }
@@ -83,6 +84,44 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
 
     private static string ShellQuote(string value) => "'" + value.Replace("'", "'\\''") + "'";
 
+    private static bool IsNoisyPrivilegedScript(string script)
+    {
+        var trimmed = script.Trim();
+        // Per-route apply/sync spam: 'ip' 'rule' 'add' ... / flush / route replace
+        if (trimmed.StartsWith("'ip'", StringComparison.Ordinal) ||
+            trimmed.StartsWith("ip ", StringComparison.Ordinal))
+        {
+            return trimmed.Contains("'rule'", StringComparison.Ordinal)
+                   || trimmed.Contains(" rule ", StringComparison.Ordinal)
+                   || trimmed.Contains("'route'", StringComparison.Ordinal)
+                   || trimmed.Contains(" route ", StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
+    private static string SummarizePrivilegedScript(string script)
+    {
+        var trimmed = script.Trim();
+        if (trimmed.Length == 0)
+            return "(empty)";
+
+        if (trimmed.Contains("resolvectl monitor", StringComparison.Ordinal) ||
+            trimmed.Contains("resolvectl-monitor", StringComparison.Ordinal) ||
+            trimmed.Contains("resolved-monitor", StringComparison.Ordinal))
+        {
+            return "start/stop resolvectl monitor";
+        }
+
+        var firstLine = trimmed.Split('\n', 2, StringSplitOptions.TrimEntries)[0];
+        if (trimmed.IndexOf('\n') < 0 && firstLine.Length <= 160)
+            return firstLine;
+
+        if (firstLine.Length > 120)
+            firstLine = firstLine[..117] + "...";
+
+        return $"{firstLine} (+{trimmed.Count(static c => c == '\n')} lines)";
+    }
     private async Task<ProcessResult> RunCoreAsync(
         string fileName,
         IReadOnlyList<string> arguments,
@@ -112,7 +151,8 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
             throw new WireGuardOperationException("Failed to start command", ex.Message);
         }
 
-        logger.LogDebug("Starting: {FileName} {Arguments}", fileName, FormatArgs(arguments));
+        if (!IsNoisyStatusProbe(fileName, arguments))
+            logger.LogDebug("Starting: {FileName} {Arguments}", fileName, FormatArgs(arguments));
 
         using var timeoutCts = timeout is { } value
             ? new CancellationTokenSource(value)
@@ -153,10 +193,32 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
                 fileName,
                 FormatArgs(arguments),
                 string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError);
-        else
+        else if (!IsNoisyStatusProbe(fileName, arguments))
             logger.LogDebug("Command completed successfully: {FileName}", fileName);
 
         return result;
+    }
+
+    private static bool IsNoisyStatusProbe(string fileName, IReadOnlyList<string> arguments)
+    {
+        if (!string.Equals(fileName, "nmcli", StringComparison.Ordinal))
+            return false;
+
+        // Polling: nmcli -t -f GENERAL.STATE connection show <name>
+        if (arguments.Count >= 5 &&
+            string.Equals(arguments[0], "-t", StringComparison.Ordinal) &&
+            string.Equals(arguments[1], "-f", StringComparison.Ordinal) &&
+            arguments[2].Contains("GENERAL.STATE", StringComparison.Ordinal) &&
+            string.Equals(arguments[3], "connection", StringComparison.Ordinal) &&
+            string.Equals(arguments[4], "show", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Polling: nmcli connection show <name>
+        return arguments.Count >= 2 &&
+               string.Equals(arguments[0], "connection", StringComparison.Ordinal) &&
+               string.Equals(arguments[1], "show", StringComparison.Ordinal);
     }
 
     private static string FormatArgs(IReadOnlyList<string> arguments) =>

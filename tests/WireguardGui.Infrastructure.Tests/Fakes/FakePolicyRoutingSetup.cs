@@ -43,6 +43,12 @@ internal sealed class FakePolicyRoutingSetup : IPolicyRoutingSetup
         return Task.FromResult(new PolicyRoutingSyncResult(true, null));
     }
 
+    public Task AddHostRoutesAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> hostCidrs,
+        CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
     public Task TeardownAsync(VpnProfile profile, CancellationToken cancellationToken = default)
     {
         TeardownProfileIds.Add(profile.Id);
@@ -56,6 +62,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
     public List<(string FileName, string[] Arguments)> PrivilegedCommands { get; } = [];
 
     public bool IpAvailable { get; init; } = true;
+    public bool NftAvailable { get; init; } = true;
     public bool InterfaceIpv6Capable { get; init; } = true;
     public bool FailRouteFlush { get; init; }
     public string WgInterfaces { get; init; } = "wg0";
@@ -65,6 +72,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
     public bool IsCommandAvailable(string command) => command switch
     {
         "ip" => IpAvailable,
+        "nft" => NftAvailable,
         "dig" => true,
         "wg" => true,
         "nmcli" => true,
