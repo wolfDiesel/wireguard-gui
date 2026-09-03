@@ -19,6 +19,8 @@ public sealed class PolicyRoutingSetup(
 
     private readonly ConcurrentDictionary<string, string> _syncedRoutes = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _interfaces = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, HashSet<string>> _bulkRoutes =
+        new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _installedHosts =
         new(StringComparer.Ordinal);
 
@@ -50,12 +52,19 @@ public sealed class PolicyRoutingSetup(
             await EnsureNmcliNeverDefaultAsync(profile, reconnect: true, cancellationToken).ConfigureAwait(false);
             await CleanupOrphanPolicyTablesAsync(profile, cancellationToken).ConfigureAwait(false);
             await CleanupBrokenNftMarkPathAsync(profile, cancellationToken).ConfigureAwait(false);
-            await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
+            await SyncDestinationRulesAsync(
+                    profile,
+                    iface,
+                    routes,
+                    replaceAll: true,
+                    readdAll: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
             await EnsureEndpointRouteAsync(profile, cancellationToken).ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = PolicyRoutingNaming.NormalizeRoutesKey(routes);
             _interfaces[profile.Id] = iface;
-            RememberInstalledHosts(profile.Id, routes);
+            ReplaceBulkAndHostState(profile.Id, routes);
             logger.LogInformation(
                 "Policy routing applied for {Profile} on {Interface} ({Count} routes)",
                 profile.Name,
@@ -102,11 +111,18 @@ public sealed class PolicyRoutingSetup(
             }
 
             await CleanupBrokenNftMarkPathAsync(profile, cancellationToken).ConfigureAwait(false);
-            await SyncDestinationRulesAsync(profile, iface, routes, cancellationToken).ConfigureAwait(false);
+            await SyncDestinationRulesAsync(
+                    profile,
+                    iface,
+                    routes,
+                    replaceAll: false,
+                    readdAll: force,
+                    cancellationToken)
+                .ConfigureAwait(false);
             await EnsureTunnelDnsAsync(profile, iface, cancellationToken).ConfigureAwait(false);
             _syncedRoutes[profile.Id] = key;
             _interfaces[profile.Id] = iface;
-            RememberInstalledHosts(profile.Id, routes);
+            MergeBulkAndHostState(profile.Id, routes);
             logger.LogInformation(
                 "Policy routing synced for {Profile} ({Count} routes, force={Force})",
                 profile.Name,
@@ -128,6 +144,7 @@ public sealed class PolicyRoutingSetup(
 
         _syncedRoutes.TryRemove(profile.Id, out _);
         _interfaces.TryRemove(profile.Id, out _);
+        _bulkRoutes.TryRemove(profile.Id, out _);
         _installedHosts.TryRemove(profile.Id, out _);
         await dnsProxy.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -190,7 +207,7 @@ public sealed class PolicyRoutingSetup(
             _interfaces[profile.Id] = iface;
         }
 
-        var script = BuildAddHostRulesScript(pending, tableText, iface);
+        var script = BuildAddHostRulesScript(pending, tableText);
         var result = await processRunner.RunPrivilegedShellAsync(script, cancellationToken)
             .ConfigureAwait(false);
         if (!result.IsSuccess)
@@ -211,17 +228,45 @@ public sealed class PolicyRoutingSetup(
             pending.Count);
     }
 
-    private void RememberInstalledHosts(string profileId, IReadOnlyList<string> routes)
+    private void ReplaceBulkAndHostState(string profileId, IReadOnlyList<string> routes)
     {
+        _bulkRoutes[profileId] = NormalizeRouteSet(routes);
         var installed = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
         foreach (var route in routes)
         {
-            var normalized = NormalizeHostCidr(route);
-            if (normalized is not null)
-                installed[normalized] = 0;
+            var host = NormalizeHostCidr(route);
+            if (host is not null)
+                installed[host] = 0;
         }
 
         _installedHosts[profileId] = installed;
+    }
+
+    private void MergeBulkAndHostState(string profileId, IReadOnlyList<string> routes)
+    {
+        _bulkRoutes[profileId] = NormalizeRouteSet(routes);
+        var installed = _installedHosts.GetOrAdd(
+            profileId,
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal));
+        foreach (var route in routes)
+        {
+            var host = NormalizeHostCidr(route);
+            if (host is not null)
+                installed[host] = 0;
+        }
+    }
+
+    private static HashSet<string> NormalizeRouteSet(IEnumerable<string> routes)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var route in routes)
+        {
+            var trimmed = route.Trim();
+            if (trimmed.Length > 0)
+                set.Add(trimmed);
+        }
+
+        return set;
     }
 
     private static string? NormalizeHostCidr(string? value)
@@ -246,7 +291,7 @@ public sealed class PolicyRoutingSetup(
         return null;
     }
 
-    private static string BuildAddHostRulesScript(IReadOnlyList<string> cidrs, string tableText, string iface)
+    private static string BuildAddHostRulesScript(IReadOnlyList<string> cidrs, string tableText)
     {
         var builder = new StringBuilder();
         foreach (var cidr in cidrs)
@@ -273,11 +318,6 @@ public sealed class PolicyRoutingSetup(
             }
         }
 
-        builder.Append("ip route replace default dev ")
-            .Append(ShellEscape(iface))
-            .Append(" table ")
-            .Append(tableText)
-            .Append(" 2>/dev/null || true\n");
         return builder.ToString();
     }
 
@@ -287,6 +327,8 @@ public sealed class PolicyRoutingSetup(
         VpnProfile profile,
         string iface,
         IReadOnlyList<string> routes,
+        bool replaceAll,
+        bool readdAll,
         CancellationToken cancellationToken)
     {
         var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
@@ -305,8 +347,110 @@ public sealed class PolicyRoutingSetup(
                 iface);
         }
 
-        await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
+        if (replaceAll)
+        {
+            await ClearRulesForTableAsync(table, cancellationToken).ConfigureAwait(false);
+            await InstallDestinationRulesAsync(
+                    ipv4Routes,
+                    ipv6Capable ? ipv6Routes : [],
+                    tableText,
+                    iface,
+                    ipv6Capable,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            await MergeDestinationRulesAsync(
+                    profile.Id,
+                    ipv4Routes,
+                    ipv6Capable ? ipv6Routes : [],
+                    tableText,
+                    iface,
+                    ipv6Capable,
+                    readdAll,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
 
+        if (ipv4Routes.Count == 0 && !ipv6Capable)
+            throw new InvalidOperationException("No applicable IPv4 routes to install");
+    }
+
+    private async Task MergeDestinationRulesAsync(
+        string profileId,
+        IReadOnlyList<string> ipv4Routes,
+        IReadOnlyList<string> ipv6Routes,
+        string tableText,
+        string iface,
+        bool ipv6Capable,
+        bool readdAll,
+        CancellationToken cancellationToken)
+    {
+        var desired = NormalizeRouteSet(ipv4Routes.Concat(ipv6Capable ? ipv6Routes : []));
+        _bulkRoutes.TryGetValue(profileId, out var previous);
+        previous ??= [];
+
+        foreach (var route in desired)
+        {
+            if (!readdAll && previous.Contains(route))
+                continue;
+
+            if (route.Contains(':', StringComparison.Ordinal))
+            {
+                await RunIpPrivilegedIgnoringErrorsAsync(
+                    ["-6", "rule", "add", "pref", RulePreference.ToString(), "to", route, "lookup", tableText],
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await RunIpPrivilegedIgnoringErrorsAsync(
+                    ["rule", "add", "pref", RulePreference.ToString(), "to", route, "lookup", tableText],
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        foreach (var route in previous)
+        {
+            if (desired.Contains(route))
+                continue;
+
+            if (NormalizeHostCidr(route) is not null)
+                continue;
+
+            if (route.Contains(':', StringComparison.Ordinal))
+            {
+                await RunIpPrivilegedIgnoringErrorsAsync(
+                    ["-6", "rule", "del", "pref", RulePreference.ToString(), "to", route, "lookup", tableText],
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await RunIpPrivilegedIgnoringErrorsAsync(
+                    ["rule", "del", "pref", RulePreference.ToString(), "to", route, "lookup", tableText],
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["route", "replace", "default", "dev", iface, "table", tableText],
+            cancellationToken).ConfigureAwait(false);
+        if (ipv6Capable)
+        {
+            await RunIpPrivilegedIgnoringErrorsAsync(
+                ["-6", "route", "replace", "default", "dev", iface, "table", tableText],
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task InstallDestinationRulesAsync(
+        IReadOnlyList<string> ipv4Routes,
+        IReadOnlyList<string> ipv6Routes,
+        string tableText,
+        string iface,
+        bool ipv6Capable,
+        CancellationToken cancellationToken)
+    {
         foreach (var route in ipv4Routes)
         {
             var trimmed = route.Trim();
@@ -322,26 +466,23 @@ public sealed class PolicyRoutingSetup(
             ["route", "replace", "default", "dev", iface, "table", tableText],
             cancellationToken).ConfigureAwait(false);
 
-        if (ipv6Capable)
-        {
-            foreach (var route in ipv6Routes)
-            {
-                var trimmed = route.Trim();
-                if (string.IsNullOrEmpty(trimmed))
-                    continue;
+        if (!ipv6Capable)
+            return;
 
-                await RunIpPrivilegedIgnoringErrorsAsync(
-                    ["-6", "rule", "add", "pref", RulePreference.ToString(), "to", trimmed, "lookup", tableText],
-                    cancellationToken).ConfigureAwait(false);
-            }
+        foreach (var route in ipv6Routes)
+        {
+            var trimmed = route.Trim();
+            if (string.IsNullOrEmpty(trimmed))
+                continue;
 
             await RunIpPrivilegedIgnoringErrorsAsync(
-                ["-6", "route", "replace", "default", "dev", iface, "table", tableText],
+                ["-6", "rule", "add", "pref", RulePreference.ToString(), "to", trimmed, "lookup", tableText],
                 cancellationToken).ConfigureAwait(false);
         }
 
-        if (ipv4Routes.Count == 0 && !ipv6Capable)
-            throw new InvalidOperationException("No applicable IPv4 routes to install");
+        await RunIpPrivilegedIgnoringErrorsAsync(
+            ["-6", "route", "replace", "default", "dev", iface, "table", tableText],
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CleanupBrokenNftMarkPathAsync(VpnProfile profile, CancellationToken cancellationToken)

@@ -72,6 +72,9 @@ public class PolicyRoutingSetupTests
         Assert.Contains(
             runner.PrivilegedCommands,
             c => MatchesIp(c, "rule", "add", "pref", "100", "to", "1.1.1.1/32", "lookup", table));
+        Assert.DoesNotContain(
+            runner.PrivilegedCommands,
+            c => MatchesIp(c, "rule", "flush", "table", table));
     }
 
     [Fact]

@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.6] - 2026-09-03
+
+### Fixed
+
+- Policy sync no longer flushes the whole routing table: merge dig routes, keep DNS-monitor `/32`/`/128` host rules so Twitch does not stall on refresh.
+- Monitored host adds no longer rewrite the policy table default route on every batch.
+
 ## [1.4.5] - 2026-09-03
 
 ### Added
