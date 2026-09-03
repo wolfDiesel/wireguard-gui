@@ -1,6 +1,9 @@
 name: Release AppImage
 
 on:
+  push:
+    tags:
+      - "v*"
   release:
     types: [published]
   workflow_dispatch:
@@ -23,9 +26,13 @@ jobs:
 
       - name: Build AppImage
         env:
-          RAW_VERSION: ${{ github.event.release.tag_name || format('0.0.0-ci.{0}', github.run_number) }}
+          RAW_VERSION: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           APPIMAGE_VERSION="${RAW_VERSION#v}"
+          # workflow_dispatch without a tag → CI build id
+          if [[ "$APPIMAGE_VERSION" == "main" || "$APPIMAGE_VERSION" == "master" || -z "$APPIMAGE_VERSION" ]]; then
+            APPIMAGE_VERSION="0.0.0-ci.${{ github.run_number }}"
+          fi
           export APPIMAGE_VERSION
           export OUTPUT_NAME="WireguardGui-${APPIMAGE_VERSION}-x86_64.AppImage"
           ./packaging/appimage/build-appimage.sh
