@@ -30,6 +30,18 @@ public sealed record BackendCapabilityDto(
     string FedoraInstallHint,
     string DebianInstallHint);
 
+public sealed record SplitRoutingToolingDto(
+    bool HasIp,
+    bool HasDig,
+    bool HasResolvectl,
+    IReadOnlyList<string> MissingCommands,
+    string FedoraInstallHint,
+    string DebianInstallHint,
+    bool HasMissingCommands,
+    bool PolicyRoutingAvailable,
+    bool DnsMonitorAvailable,
+    bool DomainResolveAvailable);
+
 public sealed record SplitRoutingResultDto(
     bool Success,
     int RouteCount,

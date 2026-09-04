@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "Маршруты обновлены",
   "Toast_Routes_Refreshed_Detail": "Обновлено маршрутов: {0}",
   "Settings_SplitRouting": "Split routing",
-  "Settings_SplitRouting_Refresh": "Интервал обновления DNS (минуты). Повторный резолв доменов Twitch и своих, пока VPN подключён."
+  "Settings_SplitRouting_Refresh": "Интервал обновления DNS (минуты). Повторный резолв доменов Twitch и своих, пока VPN подключён.",
+  "Profiles_Split_Tooling_Warning_Title": "Нет нужных утилит в системе",
+  "Profiles_Split_Tooling_Warning": "Не найдено: {0}. Резолв доменов / live-монитор / policy routing могут не работать.",
+  "Profiles_Split_Tooling_Warning_WithHints": "Не найдено: {0}. Установите: {1}",
+  "Toast_Split_Tooling_Missing": "Нет утилит для split routing"
 }

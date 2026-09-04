@@ -685,7 +685,12 @@ public sealed class PolicyRoutingSetup(
         CancellationToken cancellationToken)
     {
         if (!processRunner.IsCommandAvailable("resolvectl"))
+        {
+            logger.LogWarning(
+                "Tunnel DNS skipped on {Interface}: resolvectl not found (install systemd / systemd-resolved)",
+                iface);
             return;
+        }
 
         var dnsArgs = new List<string> { "dns", iface };
         dnsArgs.AddRange(dnsServers);

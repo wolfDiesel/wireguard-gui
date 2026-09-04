@@ -61,6 +61,15 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     [ObservableProperty]
     private string _applyRoutesStatus = string.Empty;
 
+    [ObservableProperty]
+    private string _toolingWarningText = string.Empty;
+
+    [ObservableProperty]
+    private bool _showToolingWarning;
+
+    private bool _toolingToastShown;
+    private SplitRoutingToolingDto? _tooling;
+
     public string SplitRoutingLabel => T("Profiles_SplitRouting");
     public string SplitEnableLabel => T("Profiles_Split_Enable");
     public string SplitYoutubeLabel => T("Profiles_Split_Youtube");
@@ -77,6 +86,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     public string SplitHintTwitch => T("Profiles_Split_Hint_Twitch");
     public string SplitHintDnsRemoved => T("Profiles_Split_Hint_DnsRemoved");
     public string SplitHintReconnect => T("Profiles_Split_Hint_Reconnect");
+    public string SplitToolingWarningTitle => T("Profiles_Split_Tooling_Warning_Title");
 
     public bool CanApplySplitRouting =>
         _selectedProfile is not null && SplitRoutingEnabled && HasUnappliedChanges && !IsApplyingRoutes;
@@ -101,6 +111,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         _toast = toast;
         _statusBar = statusBar;
         _refreshScheduler = refreshScheduler;
+        _ = RefreshToolingAsync();
     }
 
     public void BindSelectedProfile(ProfileRowViewModel? profile)
@@ -111,6 +122,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         OnPropertyChanged(nameof(ShowReconnectHint));
         ApplyCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
+        _ = RefreshToolingAsync();
         if (profile?.Id == _loadedProfileId)
             return;
 
@@ -214,6 +226,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         OnPropertyChanged(nameof(CanRefreshSplitRouting));
         ApplyCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
+        ApplyToolingUi(toastIfMissing: value);
         OnEdited();
     }
 
@@ -229,6 +242,47 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
     partial void OnCustomDomainsTextChanged(string value) => OnEdited();
     partial void OnTunnelDnsTextChanged(string value) => OnEdited();
 
+    private async Task RefreshToolingAsync()
+    {
+        try
+        {
+            var tooling = await _invoker.InvokeAsync(sp =>
+                Task.FromResult(sp.GetRequiredService<GetSplitRoutingToolingHandler>().Handle()));
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _tooling = tooling;
+                ApplyToolingUi(toastIfMissing: SplitRoutingEnabled);
+            });
+        }
+        catch
+        {
+        }
+    }
+
+    private void ApplyToolingUi(bool toastIfMissing)
+    {
+        var tooling = _tooling;
+        if (tooling is null || !tooling.HasMissingCommands)
+        {
+            ShowToolingWarning = false;
+            ToolingWarningText = string.Empty;
+            return;
+        }
+
+        var missing = string.Join(", ", tooling.MissingCommands);
+        var hints = string.Join(" · ", new[] { tooling.FedoraInstallHint, tooling.DebianInstallHint }
+            .Where(static h => !string.IsNullOrWhiteSpace(h)));
+        ToolingWarningText = string.IsNullOrWhiteSpace(hints)
+            ? Tf("Profiles_Split_Tooling_Warning", missing)
+            : Tf("Profiles_Split_Tooling_Warning_WithHints", missing, hints);
+        ShowToolingWarning = true;
+
+        if (toastIfMissing && !_toolingToastShown)
+        {
+            _toolingToastShown = true;
+            _toast.ShowInfo(T("Toast_Split_Tooling_Missing"), ToolingWarningText);
+        }
+    }
     private async Task LoadAsync(ProfileRowViewModel? row)
     {
         if (row is null)
@@ -341,7 +395,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
         && string.Equals(left.TunnelDns, right.TunnelDns, StringComparison.OrdinalIgnoreCase)
         && left.CustomDomains.SequenceEqual(right.CustomDomains, StringComparer.OrdinalIgnoreCase);
 
-    protected override void OnLocalizationChanged() =>
+    protected override void OnLocalizationChanged()
+    {
         NotifyLocalized(
             nameof(SplitRoutingLabel),
             nameof(SplitEnableLabel),
@@ -358,5 +413,8 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
             nameof(SplitHintCloudflare),
             nameof(SplitHintTwitch),
             nameof(SplitHintDnsRemoved),
-            nameof(SplitHintReconnect));
+            nameof(SplitHintReconnect),
+            nameof(SplitToolingWarningTitle));
+        ApplyToolingUi(toastIfMissing: false);
+    }
 }

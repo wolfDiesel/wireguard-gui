@@ -99,6 +99,13 @@
                          IsVisible="{Binding ShowReconnectHint}"
                          Text="{Binding SplitHintReconnect}" />
               <Border Classes="island-inner" Padding="12"
+                      IsVisible="{Binding ShowToolingWarning}">
+                <StackPanel Spacing="4">
+                  <TextBlock FontWeight="SemiBold" Text="{Binding SplitToolingWarningTitle}" TextWrapping="Wrap" />
+                  <TextBlock Classes="text-muted" Text="{Binding ToolingWarningText}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+              <Border Classes="island-inner" Padding="12"
                       IsVisible="{Binding IsApplyingRoutes}">
                 <StackPanel Spacing="8">
                   <ProgressBar IsIndeterminate="True" Height="4" />

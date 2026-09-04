@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.7] - 2026-09-04
+
+### Added
+
+- Split routing tooling probe for `ip`, `dig`, and `resolvectl`: UI banner + toast with install hints when tools are missing; warnings in logs if the DNS monitor or tunnel DNS are skipped.
+
 ## [1.4.6] - 2026-09-03
 
 ### Fixed

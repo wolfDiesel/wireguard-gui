@@ -24,6 +24,36 @@ public class SystemCapabilityProbeTests
         Assert.Contains("nmcli", nmcli.MissingComponents);
     }
 
+    [Fact]
+    public void ProbeSplitRoutingTooling_ReportsMissingCommands()
+    {
+        var probe = new SystemCapabilityProbe(new FakeProcessRunner(["ip"]));
+        var tooling = probe.ProbeSplitRoutingTooling();
+
+        Assert.True(tooling.HasIp);
+        Assert.False(tooling.HasDig);
+        Assert.False(tooling.HasResolvectl);
+        Assert.True(tooling.HasMissingCommands);
+        Assert.Contains("dig", tooling.MissingCommands);
+        Assert.Contains("resolvectl", tooling.MissingCommands);
+        Assert.False(tooling.DnsMonitorAvailable);
+        Assert.False(tooling.DomainResolveAvailable);
+        Assert.Contains("bind-utils", tooling.FedoraInstallHint, StringComparison.Ordinal);
+        Assert.Contains("dnsutils", tooling.DebianInstallHint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProbeSplitRoutingTooling_AllPresent()
+    {
+        var probe = new SystemCapabilityProbe(new FakeProcessRunner(["ip", "dig", "resolvectl"]));
+        var tooling = probe.ProbeSplitRoutingTooling();
+
+        Assert.False(tooling.HasMissingCommands);
+        Assert.True(tooling.DnsMonitorAvailable);
+        Assert.True(tooling.DomainResolveAvailable);
+        Assert.Empty(tooling.FedoraInstallHint);
+    }
+
     private sealed class FakeProcessRunner(IReadOnlyList<string> available) : IProcessRunner
     {
         public bool IsCommandAvailable(string command) => available.Contains(command);

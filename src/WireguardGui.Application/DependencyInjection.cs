@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddSingleton<DeleteProfileHandler>();
         services.AddSingleton<GetProfilesHandler>();
         services.AddSingleton<GetSystemCapabilitiesHandler>();
+        services.AddSingleton<GetSplitRoutingToolingHandler>();
         services.AddSingleton<ApplySplitRoutingHandler>();
         services.AddSingleton<SaveProfileSplitRoutingHandler>();
         services.AddSingleton<GetProfileSplitRoutingHandler>();

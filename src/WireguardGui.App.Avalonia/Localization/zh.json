@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "路由已刷新",
   "Toast_Routes_Refreshed_Detail": "已更新 {0} 条路由",
   "Settings_SplitRouting": "分流路由",
-  "Settings_SplitRouting_Refresh": "DNS 刷新间隔（分钟）。连接期间会重新解析 Twitch 和自定义域名。"
+  "Settings_SplitRouting_Refresh": "DNS 刷新间隔（分钟）。连接期间会重新解析 Twitch 和自定义域名。",
+  "Profiles_Split_Tooling_Warning_Title": "缺少系统工具",
+  "Profiles_Split_Tooling_Warning": "未找到：{0}。域名解析 / 实时监视 / 策略路由可能无法工作。",
+  "Profiles_Split_Tooling_Warning_WithHints": "未找到：{0}。安装：{1}",
+  "Toast_Split_Tooling_Missing": "缺少分流路由工具"
 }

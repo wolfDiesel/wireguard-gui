@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "Routen aktualisiert",
   "Toast_Routes_Refreshed_Detail": "{0} Routen aktualisiert",
   "Settings_SplitRouting": "Split-Routing",
-  "Settings_SplitRouting_Refresh": "DNS-Aktualisierungsintervall (Minuten). Twitch-/eigene Domains werden bei bestehender Verbindung erneut aufgelöst."
+  "Settings_SplitRouting_Refresh": "DNS-Aktualisierungsintervall (Minuten). Twitch-/eigene Domains werden bei bestehender Verbindung erneut aufgelöst.",
+  "Profiles_Split_Tooling_Warning_Title": "Fehlende Systemwerkzeuge",
+  "Profiles_Split_Tooling_Warning": "Nicht gefunden: {0}. Domain-DNS / Live-Monitor / Policy-Routing funktionieren ggf. nicht.",
+  "Profiles_Split_Tooling_Warning_WithHints": "Nicht gefunden: {0}. Installieren: {1}",
+  "Toast_Split_Tooling_Missing": "Split-Routing-Werkzeuge fehlen"
 }

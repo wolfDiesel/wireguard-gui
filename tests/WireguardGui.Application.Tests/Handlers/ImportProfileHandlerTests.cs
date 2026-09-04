@@ -137,6 +137,9 @@ public class ImportProfileHandlerTests
                 new(BackendKind.Native, false, ["wg"], "", ""),
                 new(BackendKind.Nmcli, false, ["nmcli"], "", ""),
             ]);
+
+        public WireguardGui.Application.Abstractions.SplitRoutingToolingCapability ProbeSplitRoutingTooling() =>
+            new(true, true, true, [], "", "");
     }
 
     private sealed class AlwaysAvailableProbe : WireguardGui.Application.Abstractions.ISystemCapabilityProbe
@@ -154,5 +157,8 @@ public class ImportProfileHandlerTests
                 new(BackendKind.Native, true, [], "", ""),
                 new(BackendKind.Nmcli, true, [], "", ""),
             ]);
+
+        public WireguardGui.Application.Abstractions.SplitRoutingToolingCapability ProbeSplitRoutingTooling() =>
+            new(true, true, true, [], "", "");
     }
 }

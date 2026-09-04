@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "ルートを更新しました",
   "Toast_Routes_Refreshed_Detail": "{0} 件のルートを更新",
   "Settings_SplitRouting": "スプリットルーティング",
-  "Settings_SplitRouting_Refresh": "DNS 更新間隔（分）。接続中に Twitch / カスタムドメインを再解決します。"
+  "Settings_SplitRouting_Refresh": "DNS 更新間隔（分）。接続中に Twitch / カスタムドメインを再解決します。",
+  "Profiles_Split_Tooling_Warning_Title": "システムツールがありません",
+  "Profiles_Split_Tooling_Warning": "見つかりません: {0}。ドメイン解決 / モニター / ポリシールーティングが動作しない可能性があります。",
+  "Profiles_Split_Tooling_Warning_WithHints": "見つかりません: {0}。インストール: {1}",
+  "Toast_Split_Tooling_Missing": "スプリットルーティング用ツールがありません"
 }

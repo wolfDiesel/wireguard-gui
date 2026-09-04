@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "Routes actualisées",
   "Toast_Routes_Refreshed_Detail": "{0} routes mises à jour",
   "Settings_SplitRouting": "Routage partiel",
-  "Settings_SplitRouting_Refresh": "Intervalle de rafraîchissement DNS (minutes). Les domaines Twitch/perso sont re-résolus tant que la connexion est active."
+  "Settings_SplitRouting_Refresh": "Intervalle de rafraîchissement DNS (minutes). Les domaines Twitch/perso sont re-résolus tant que la connexion est active.",
+  "Profiles_Split_Tooling_Warning_Title": "Outils système manquants",
+  "Profiles_Split_Tooling_Warning": "Introuvable : {0}. La résolution DNS / le moniteur / le policy routing peuvent échouer.",
+  "Profiles_Split_Tooling_Warning_WithHints": "Introuvable : {0}. Installer : {1}",
+  "Toast_Split_Tooling_Missing": "Outils de routage partiel manquants"
 }

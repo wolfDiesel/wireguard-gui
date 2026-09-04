@@ -125,5 +125,9 @@
   "Toast_Routes_Refreshed": "Rutas actualizadas",
   "Toast_Routes_Refreshed_Detail": "Se actualizaron {0} rutas",
   "Settings_SplitRouting": "Enrutamiento dividido",
-  "Settings_SplitRouting_Refresh": "Intervalo de actualización DNS (minutos). Se vuelven a resolver los dominios de Twitch y personalizados mientras hay conexión."
+  "Settings_SplitRouting_Refresh": "Intervalo de actualización DNS (minutos). Se vuelven a resolver los dominios de Twitch y personalizados mientras hay conexión.",
+  "Profiles_Split_Tooling_Warning_Title": "Faltan herramientas del sistema",
+  "Profiles_Split_Tooling_Warning": "No encontrado: {0}. La resolución DNS / el monitor / el policy routing pueden fallar.",
+  "Profiles_Split_Tooling_Warning_WithHints": "No encontrado: {0}. Instalar: {1}",
+  "Toast_Split_Tooling_Missing": "Faltan herramientas de split routing"
 }

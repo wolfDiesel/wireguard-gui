@@ -56,6 +56,45 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
     private static bool IsWireGuardModuleAvailable() =>
         Directory.Exists("/sys/module/wireguard");
 
+    public SplitRoutingToolingCapability ProbeSplitRoutingTooling()
+    {
+        var missing = new List<string>();
+        var fedora = new List<string>();
+        var debian = new List<string>();
+
+        var hasIp = processRunner.IsCommandAvailable("ip");
+        if (!hasIp)
+        {
+            missing.Add("ip");
+            fedora.Add("iproute");
+            debian.Add("iproute2");
+        }
+
+        var hasDig = processRunner.IsCommandAvailable("dig");
+        if (!hasDig)
+        {
+            missing.Add("dig");
+            fedora.Add("bind-utils");
+            debian.Add("dnsutils");
+        }
+
+        var hasResolvectl = processRunner.IsCommandAvailable("resolvectl");
+        if (!hasResolvectl)
+        {
+            missing.Add("resolvectl");
+            fedora.Add("systemd");
+            debian.Add("systemd");
+        }
+
+        return new SplitRoutingToolingCapability(
+            hasIp,
+            hasDig,
+            hasResolvectl,
+            missing,
+            fedora.Count == 0 ? string.Empty : "sudo dnf install " + string.Join(' ', fedora.Distinct()),
+            debian.Count == 0 ? string.Empty : "sudo apt install " + string.Join(' ', debian.Distinct()));
+    }
+
     private async Task<bool> IsNetworkManagerActiveAsync(CancellationToken cancellationToken)
     {
         if (!processRunner.IsCommandAvailable("nmcli"))

@@ -38,10 +38,26 @@ public sealed class ResolvedDnsRouteMonitor(
         ArgumentNullException.ThrowIfNull(profile);
 
         var suffixes = DnsRouteSuffixes.FromSettings(profile.SplitRouting);
-        if (!policyRoutingSetup.IsAvailable ||
-            suffixes.Count == 0 ||
-            !processRunner.IsCommandAvailable("resolvectl"))
+        if (!policyRoutingSetup.IsAvailable)
         {
+            logger.LogWarning(
+                "Resolved DNS route monitor skipped for {Profile}: ip (policy routing) is not available",
+                profile.Name);
+            await StopAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (suffixes.Count == 0)
+        {
+            await StopAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!processRunner.IsCommandAvailable("resolvectl"))
+        {
+            logger.LogWarning(
+                "Resolved DNS route monitor skipped for {Profile}: resolvectl not found (install systemd / systemd-resolved)",
+                profile.Name);
             await StopAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
