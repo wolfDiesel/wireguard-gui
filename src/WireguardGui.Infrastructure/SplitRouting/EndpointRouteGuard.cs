@@ -76,7 +76,7 @@ public sealed class EndpointRouteGuard(
         {
             var nmResult = await processRunner.RunAsync(
                 "nmcli",
-                ["-g", "wireguard.interface", "connection", "show", profile.ConnectionName],
+                ["-g", "connection.interface-name", "connection", "show", profile.ConnectionName],
                 cancellationToken).ConfigureAwait(false);
             var nmIface = nmResult.StandardOutput.Trim();
             if (!string.IsNullOrWhiteSpace(nmIface))

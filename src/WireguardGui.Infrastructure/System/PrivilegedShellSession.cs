@@ -10,7 +10,6 @@ namespace WireguardGui.Infrastructure.System;
 internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
 {
     private const string HelperScript = """
-
         #!/bin/bash
         while IFS= read -r encoded; do
           [ -z "$encoded" ] && continue
@@ -97,6 +96,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        psi.ArgumentList.Add("bash");
         psi.ArgumentList.Add(helperPath);
 
         _process = new Process { StartInfo = psi };
@@ -193,7 +193,19 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             }
         }
 
-        throw new WireGuardOperationException("Privileged session ended without a response", null);
+        if (_process.HasExited)
+            await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+        var processError = _process.HasExited
+            ? await _process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+        logger.LogWarning(
+            "Privileged session ended without a response (exit code: {ExitCode}); stderr: {Stderr}",
+            _process.HasExited ? _process.ExitCode : (int?)null,
+            processError?.Trim());
+        throw new WireGuardOperationException(
+            "Privileged session ended without a response",
+            processError?.Trim() is { Length: > 0 } error ? error : null);
     }
 
     private async Task ResetAsync()

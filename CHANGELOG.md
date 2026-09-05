@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.12] - 2026-09-05
+
+### Fixed
+
+- **Privileged session broken with `Exec format error` (exit 127)**: the helper script file started with an empty line — C# raw string literal adds a leading `\n` after `"""`, so `#!/bin/bash` was on the second line and the kernel refused to `execve` it (ENOEXEC). The helper is now launched as `pkexec bash <script>` — bash reads the file itself, no shebang needed.
+- **Internal interface name lookup**: `nmcli -g wireguard.interface` is not a valid field (nmcli rejects it); replaced with `connection.interface-name`.
+
 ## [1.4.11] - 2026-09-05
 
 ### Added
