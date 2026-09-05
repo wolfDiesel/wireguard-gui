@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.11] - 2026-09-05
+
+### Added
+
+- **About page with app version**: new "About" page in the left nav (Profiles / Settings / About) showing app name, logo, and build version. The version flows from the release tag (`APPIMAGE_VERSION` → `-p:AppVersion` → embedded `version.txt` → `AppVersionService`); dev and CI builds without a tag show "dev build" instead of `0.0.0`.
+- `AppVersionService` — reads the embedded `WireguardGui.App.version.txt` resource (fallback `dev`); registered as a singleton.
+- Localized keys for the About page (en, ru, de, fr, es, ja, zh).
+- `AppVersionServiceTests` — embedded resource read, no `+`/`-` commit-suffix, stability across calls.
+
 ## [1.4.10] - 2026-09-05
 
 ### Fixed

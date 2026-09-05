@@ -2,6 +2,7 @@
   "App_Title": "WireGuard GUI",
   "Nav_Profiles": "Profiles",
   "Nav_Settings": "Settings",
+  "Nav_About": "About",
   "Settings_Title": "Settings",
   "Settings_Theme": "Theme",
   "Settings_Appearance_Dark": "Dark",
@@ -129,5 +130,8 @@
   "Profiles_Split_Tooling_Warning_Title": "Missing system tools",
   "Profiles_Split_Tooling_Warning": "Not found: {0}. Domain DNS resolve / live monitor / policy routing may not work.",
   "Profiles_Split_Tooling_Warning_WithHints": "Not found: {0}. Install: {1}",
-  "Toast_Split_Tooling_Missing": "Split routing tools missing"
+  "Toast_Split_Tooling_Missing": "Split routing tools missing",
+  "About_Title": "About",
+  "About_Version": "Version: {0}",
+  "About_Version_Dev": "dev build"
 }

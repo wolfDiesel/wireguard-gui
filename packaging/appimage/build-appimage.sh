@@ -58,6 +58,10 @@ prepare_icon() {
 publish_app() {
   echo "Publishing Avalonia app (linux-x64, self-contained)..."
   rm -rf "$PUBLISH"
+  local app_version_arg=()
+  if [[ -n "${APPIMAGE_VERSION:-}" && "$APPIMAGE_VERSION" != "0.0.0" ]]; then
+    app_version_arg=(-p:AppVersion="$APPIMAGE_VERSION")
+  fi
   dotnet publish "$ROOT/src/WireguardGui.App.Avalonia/WireguardGui.App.Avalonia.csproj" \
     -c Release \
     -r linux-x64 \
@@ -65,6 +69,7 @@ publish_app() {
     -p:PublishSingleFile=false \
     -p:DebugType=none \
     -p:DebugSymbols=false \
+    "${app_version_arg[@]}" \
     -o "$PUBLISH"
 }
 

@@ -20,11 +20,13 @@ internal static class ServiceRegistration
         services.AddSingleton<ThemeService>();
         services.AddSingleton<AppToastService>();
         services.AddSingleton<StatusBarService>();
+        services.AddSingleton<AppVersionService>();
         services.AddSingleton<ISplitRoutingTimer, AvaloniaSplitRoutingTimer>();
         services.AddSingleton<ISplitRoutingRefreshNotifier, SplitRoutingRefreshNotifier>();
         services.AddSingleton<SplitRoutingPanelViewModel>();
         services.AddSingleton<ProfilesViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<AboutViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         return services;
     }

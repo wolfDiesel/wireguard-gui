@@ -2,6 +2,7 @@
   "App_Title": "WireGuard GUI",
   "Nav_Profiles": "配置文件",
   "Nav_Settings": "设置",
+  "Nav_About": "关于",
   "Settings_Title": "设置",
   "Settings_Theme": "主题",
   "Settings_Appearance_Dark": "深色",
@@ -129,5 +130,8 @@
   "Profiles_Split_Tooling_Warning_Title": "缺少系统工具",
   "Profiles_Split_Tooling_Warning": "未找到：{0}。域名解析 / 实时监视 / 策略路由可能无法工作。",
   "Profiles_Split_Tooling_Warning_WithHints": "未找到：{0}。安装：{1}",
-  "Toast_Split_Tooling_Missing": "缺少分流路由工具"
+  "Toast_Split_Tooling_Missing": "缺少分流路由工具",
+  "About_Title": "关于",
+  "About_Version": "版本：{0}",
+  "About_Version_Dev": "dev build"
 }

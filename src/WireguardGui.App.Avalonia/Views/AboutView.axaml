@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:WireguardGui.App.Avalonia.ViewModels"
+             x:Class="WireguardGui.App.Avalonia.Views.AboutView"
+             x:DataType="vm:AboutViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="12">
+      <TextBlock Classes="page-title" Text="{Binding Title}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+        <Image Width="64" Height="64"
+               Source="avares://WireguardGui.App/Assets/wireguard-gui.png"
+               Stretch="Uniform" />
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Text="{Binding AppName}" FontWeight="SemiBold" FontSize="18" />
+          <TextBlock Classes="text-muted" Text="{Binding VersionLabel}" FontSize="13" />
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -2,6 +2,7 @@
   "App_Title": "WireGuard GUI",
   "Nav_Profiles": "Профили",
   "Nav_Settings": "Настройки",
+  "Nav_About": "О программе",
   "Settings_Title": "Настройки",
   "Settings_Theme": "Тема",
   "Settings_Appearance_Dark": "Тёмная",
@@ -129,5 +130,8 @@
   "Profiles_Split_Tooling_Warning_Title": "Нет нужных утилит в системе",
   "Profiles_Split_Tooling_Warning": "Не найдено: {0}. Резолв доменов / live-монитор / policy routing могут не работать.",
   "Profiles_Split_Tooling_Warning_WithHints": "Не найдено: {0}. Установите: {1}",
-  "Toast_Split_Tooling_Missing": "Нет утилит для split routing"
+  "Toast_Split_Tooling_Missing": "Нет утилит для split routing",
+  "About_Title": "О программе",
+  "About_Version": "Версия: {0}",
+  "About_Version_Dev": "dev build"
 }

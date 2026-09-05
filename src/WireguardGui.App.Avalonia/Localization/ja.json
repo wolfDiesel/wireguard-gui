@@ -2,6 +2,7 @@
   "App_Title": "WireGuard GUI",
   "Nav_Profiles": "プロファイル",
   "Nav_Settings": "設定",
+  "Nav_About": "このアプリについて",
   "Settings_Title": "設定",
   "Settings_Theme": "テーマ",
   "Settings_Appearance_Dark": "ダーク",
@@ -129,5 +130,8 @@
   "Profiles_Split_Tooling_Warning_Title": "システムツールがありません",
   "Profiles_Split_Tooling_Warning": "見つかりません: {0}。ドメイン解決 / モニター / ポリシールーティングが動作しない可能性があります。",
   "Profiles_Split_Tooling_Warning_WithHints": "見つかりません: {0}。インストール: {1}",
-  "Toast_Split_Tooling_Missing": "スプリットルーティング用ツールがありません"
+  "Toast_Split_Tooling_Missing": "スプリットルーティング用ツールがありません",
+  "About_Title": "このアプリについて",
+  "About_Version": "バージョン: {0}",
+  "About_Version_Dev": "dev build"
 }

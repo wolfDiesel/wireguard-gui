@@ -45,6 +45,10 @@
                       Classes.active="{Binding NavSettingsActive}"
                       Content="{Binding NavSettingsLabel}"
                       Command="{Binding NavigateSettingsCommand}" />
+              <controls:AppButton Variant="Nav"
+                      Classes.active="{Binding NavAboutActive}"
+                      Content="{Binding NavAboutLabel}"
+                      Command="{Binding NavigateAboutCommand}" />
             </StackPanel>
           </DockPanel>
         </Border>

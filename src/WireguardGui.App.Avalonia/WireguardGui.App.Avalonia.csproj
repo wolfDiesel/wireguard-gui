@@ -7,7 +7,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AppVersion>dev</AppVersion>
   </PropertyGroup>
+
+  <!--
+    version.txt is generated from $(AppVersion) on every build so the
+    About page can show the release version without a +sha suffix.
+    - release builds pass -p:AppVersion=1.4.x (from the git tag via APPIMAGE_VERSION)
+    - dev builds (dotnet run) keep the default 'dev'
+  -->
+  <Target Name="GenerateVersionResource" BeforeTargets="BeforeBuild">
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)version.txt"
+                      Lines="$(AppVersion)"
+                      Overwrite="true"
+                      Encoding="utf-8" />
+  </Target>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(IntermediateOutputPath)version.txt">
+      <LogicalName>WireguardGui.App.version.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Localization\*.json">

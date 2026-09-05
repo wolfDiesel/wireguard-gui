@@ -2,6 +2,7 @@
   "App_Title": "WireGuard GUI",
   "Nav_Profiles": "Profils",
   "Nav_Settings": "Paramètres",
+  "Nav_About": "À propos",
   "Settings_Title": "Paramètres",
   "Settings_Theme": "Thème",
   "Settings_Appearance_Dark": "Sombre",
@@ -129,5 +130,8 @@
   "Profiles_Split_Tooling_Warning_Title": "Outils système manquants",
   "Profiles_Split_Tooling_Warning": "Introuvable : {0}. La résolution DNS / le moniteur / le policy routing peuvent échouer.",
   "Profiles_Split_Tooling_Warning_WithHints": "Introuvable : {0}. Installer : {1}",
-  "Toast_Split_Tooling_Missing": "Outils de routage partiel manquants"
+  "Toast_Split_Tooling_Missing": "Outils de routage partiel manquants",
+  "About_Title": "À propos",
+  "About_Version": "Version : {0}",
+  "About_Version_Dev": "dev build"
 }
