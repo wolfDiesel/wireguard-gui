@@ -44,6 +44,8 @@ public sealed class ApplySplitRoutingHandler(
         if (!profile.SplitRouting.Enabled)
             return new SplitRoutingResultDto(false, 0, null, "Split routing is disabled");
 
+        profile = profile with { SplitRouting = profile.SplitRouting.Normalize() };
+
         logger.LogInformation(
             "Applying split routing for {Profile} (forceRefresh={Force})",
             profile.Name,

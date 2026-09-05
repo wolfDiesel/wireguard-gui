@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using WireguardGui.Application.Abstractions;
 using WireguardGui.Application.Handlers;
+using WireguardGui.Application.Services;
 
 namespace WireguardGui.Application;
 
@@ -19,6 +21,9 @@ public static class DependencyInjection
         services.AddSingleton<GetProfileSplitRoutingHandler>();
         services.AddSingleton<GetSettingsHandler>();
         services.AddSingleton<SaveSettingsHandler>();
+        services.AddSingleton<SplitRoutingRefreshService>();
+        services.AddSingleton<ISplitRoutingRefreshScheduler>(
+            sp => sp.GetRequiredService<SplitRoutingRefreshService>());
         return services;
     }
 }

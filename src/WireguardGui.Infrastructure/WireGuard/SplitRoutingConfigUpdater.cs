@@ -7,7 +7,7 @@ using WireguardGui.Domain;
 namespace WireguardGui.Infrastructure.WireGuard;
 
 public sealed class SplitRoutingConfigUpdater(
-    IProfileStore profileStore,
+    IWireGuardConfigRepository configRepository,
     ISplitRouteBuilder splitRouteBuilder,
     IWireGuardConfigParser configParser,
     IPolicyRoutingSetup policyRoutingSetup,
@@ -42,15 +42,13 @@ public sealed class SplitRoutingConfigUpdater(
         }
 
         var routesCsv = string.Join(",", routes);
-        var configPath = profileStore.GetConfigPath(profile);
-        var configContent = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var configContent = await configRepository.ReadAsync(profile, cancellationToken).ConfigureAwait(false);
 
         if (policyRoutingSetup.IsAvailable)
             return await TryUpdatePolicyBaselineAsync(
                 profile,
                 routes,
                 routesCsv,
-                configPath,
                 configContent,
                 progress,
                 cancellationToken).ConfigureAwait(false);
@@ -59,7 +57,6 @@ public sealed class SplitRoutingConfigUpdater(
             profile,
             routes,
             routesCsv,
-            configPath,
             configContent,
             progress,
             cancellationToken).ConfigureAwait(false);
@@ -69,7 +66,6 @@ public sealed class SplitRoutingConfigUpdater(
         VpnProfile profile,
         IReadOnlyList<string> routes,
         string routesCsv,
-        string configPath,
         string configContent,
         IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
@@ -92,7 +88,7 @@ public sealed class SplitRoutingConfigUpdater(
 
         progress?.Report(new SplitRoutingProgress("Progress_Write_Config"));
 
-        await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        await configRepository.WriteAsync(profile, updated, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
             "Config {Profile}: updated policy split baseline ({Count} live routes)",
             profile.Name,
@@ -111,7 +107,6 @@ public sealed class SplitRoutingConfigUpdater(
         VpnProfile profile,
         IReadOnlyList<string> routes,
         string routesCsv,
-        string configPath,
         string configContent,
         IProgress<SplitRoutingProgress>? progress,
         CancellationToken cancellationToken)
@@ -135,7 +130,7 @@ public sealed class SplitRoutingConfigUpdater(
         if (dnsPresent && SplitRoutingPolicy.RemoveDnsOnApply)
             updated = configParser.RemoveDns(updated);
 
-        await File.WriteAllTextAsync(configPath, updated, cancellationToken).ConfigureAwait(false);
+        await configRepository.WriteAsync(profile, updated, cancellationToken).ConfigureAwait(false);
         logger.LogInformation(
             "Config {Profile}: updated AllowedIPs ({Count} routes), DNS removed={DnsRemoved}",
             profile.Name,

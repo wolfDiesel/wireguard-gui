@@ -8,6 +8,17 @@ using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting;
 
+/// <summary>
+/// Запасной механизм перехвата DNS-ответов для динамических split-routing маршрутов:
+/// UDP-прокси на 127.0.0.1:<see cref="IDomainRouteDnsProxy.ListenPort"/>, парсинг DNS-сообщений,
+/// матчинг суффиксов, колбэк с найденными IP. Не требует привилегий.
+/// </summary>
+/// <remarks>
+/// ВНИМАНИЕ: в текущей версии НЕ подключён в DI-процесс — <see cref="IDomainRouteDnsProxy.StartAsync"/>
+/// нигде не вызывается. Основной путь — <c>ResolvedDnsRouteMonitor</c> через <c>resolvectl monitor</c>
+/// (FIFO + pkexec). Включать как fallback, когда systemd-resolved недоступен, монитор падает
+/// или нужен путь без pkexec.
+/// </remarks>
 public sealed class DomainRouteDnsProxy(ILogger<DomainRouteDnsProxy> logger) : IDomainRouteDnsProxy, IAsyncDisposable
 {
     private readonly object _gate = new();

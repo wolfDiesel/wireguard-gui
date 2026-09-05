@@ -10,5 +10,6 @@
     <Project Path="tests/WireguardGui.App.Tests/WireguardGui.App.Tests.csproj" />
     <Project Path="tests/WireguardGui.Application.Tests/WireguardGui.Application.Tests.csproj" />
     <Project Path="tests/WireguardGui.Infrastructure.Tests/WireguardGui.Infrastructure.Tests.csproj" />
+    <Project Path="tests/WireguardGui.TestReporter/WireguardGui.TestReporter.csproj" />
   </Folder>
 </Solution>

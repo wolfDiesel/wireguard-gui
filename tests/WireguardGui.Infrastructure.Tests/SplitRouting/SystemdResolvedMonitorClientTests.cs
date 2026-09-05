@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using WireguardGui.Infrastructure.SplitRouting;
 
@@ -36,24 +35,51 @@ public class SystemdResolvedMonitorClientTests
     }
 
     [Fact]
-    public void TryParseResolvectlMonitorLine_ReadsARecord()
+    public void TryParseQueryResult_ReadsAaaaRecords()
     {
-        var ok = ResolvedDnsRouteMonitor.TryParseResolvectlMonitorLine(
-            "← A: usher.ttvnw.net IN A 18.239.208.48",
+        var json = """
+            {
+              "state": "success",
+              "question": [{"name": "usher.ttvnw.net", "type": 28, "class": 1}],
+              "answer": [
+                {
+                  "rr": {
+                    "key": {"name": "usher.ttvnw.net", "type": 28, "class": 1},
+                    "address": [32, 1, 13, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                  }
+                }
+              ]
+            }
+            """;
+
+        using var doc = JsonDocument.Parse(json);
+        var ok = SystemdResolvedMonitorClient.TryParseQueryResult(
+            doc.RootElement,
             out var host,
-            out var address);
+            out var addresses);
 
         Assert.True(ok);
         Assert.Equal("usher.ttvnw.net", host);
-        Assert.Equal(IPAddress.Parse("18.239.208.48"), address);
+        Assert.Equal(["2001:db8::"], addresses.Select(a => a.ToString()));
     }
 
     [Fact]
-    public void TryParseResolvectlMonitorLine_IgnoresQueries()
+    public void TryParseQueryResult_IgnoresNonSuccessState()
     {
-        Assert.False(ResolvedDnsRouteMonitor.TryParseResolvectlMonitorLine(
-            "→ Q: usher.ttvnw.net IN A",
+        var json = """
+            {
+              "state": "failed",
+              "question": [{"name": "usher.ttvnw.net", "type": 1, "class": 1}],
+              "answer": []
+            }
+            """;
+
+        using var doc = JsonDocument.Parse(json);
+        var ok = SystemdResolvedMonitorClient.TryParseQueryResult(
+            doc.RootElement,
             out _,
-            out _));
+            out _);
+
+        Assert.False(ok);
     }
 }

@@ -10,9 +10,13 @@ internal sealed partial class TwitchStreamHostDiscoverer(
     HttpClient httpClient,
     ILogger<TwitchStreamHostDiscoverer> logger)
 {
+    // Публичный Client-ID Twitch-клиента (не секрет). Если Twitch отзовёт его,
+    // discovery перестанет работать — запасной путь: курируемые FQDN + кэш.
     private const string TwitchClientId = "kimne78kx3ncx6brgo4mv6wki5h1ko";
     private const string GqlUrl = "https://gql.twitch.tv/gql";
     private const string PlaybackAccessTokenHash = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9";
+    private const int MaxRetries = 2;
+    private static readonly TimeSpan[] RetryDelays = [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)];
 
     public async Task<IReadOnlyList<string>> DiscoverHostsAsync(
         string channel,
@@ -69,23 +73,23 @@ internal sealed partial class TwitchStreamHostDiscoverer(
             },
         });
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, GqlUrl);
-        request.Headers.TryAddWithoutValidation("Client-ID", TwitchClientId);
-        request.Headers.TryAddWithoutValidation("Device-ID", Guid.NewGuid().ToString("N"));
-        request.Headers.TryAddWithoutValidation(
-            "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
-
-        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Twitch GQL token request for {Channel} failed: {Status}",
-                channel,
-                (int)response.StatusCode);
+        using var response = await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, GqlUrl);
+                request.Headers.TryAddWithoutValidation("Client-ID", TwitchClientId);
+                request.Headers.TryAddWithoutValidation("Device-ID", Guid.NewGuid().ToString("N"));
+                request.Headers.TryAddWithoutValidation(
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+                return request;
+            },
+            channel,
+            "GQL token",
+            cancellationToken).ConfigureAwait(false);
+        if (response is null)
             return null;
-        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken)
@@ -104,7 +108,7 @@ internal sealed partial class TwitchStreamHostDiscoverer(
             || !data.TryGetProperty("streamPlaybackAccessToken", out var tokenNode)
             || tokenNode.ValueKind == JsonValueKind.Null)
         {
-            logger.LogWarning("Twitch GQL token missing for {Channel} (offline?)", channel);
+            logger.LogInformation("Twitch GQL token missing for {Channel} (channel offline)", channel);
             return null;
         }
 
@@ -139,22 +143,22 @@ internal sealed partial class TwitchStreamHostDiscoverer(
             $"https://usher.ttvnw.net/api/v2/channel/hls/{Uri.EscapeDataString(channel.ToLowerInvariant())}.m3u8" +
             $"?{string.Join("&", query.Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value)}"))}";
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-mpegURL"));
-        request.Headers.TryAddWithoutValidation("Client-ID", TwitchClientId);
-        request.Headers.TryAddWithoutValidation(
-            "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Twitch usher playlist for {Channel} failed: {Status}",
-                channel,
-                (int)response.StatusCode);
+        using var response = await SendWithRetryAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-mpegURL"));
+                request.Headers.TryAddWithoutValidation("Client-ID", TwitchClientId);
+                request.Headers.TryAddWithoutValidation(
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                return request;
+            },
+            channel,
+            "usher playlist",
+            cancellationToken).ConfigureAwait(false);
+        if (response is null)
             return null;
-        }
 
         var master = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var mediaUrls = ExtractMediaPlaylistUrls(master);
@@ -178,6 +182,10 @@ internal sealed partial class TwitchStreamHostDiscoverer(
                 combined.Append('\n');
                 combined.Append(await mediaResponse.Content.ReadAsStringAsync(cancellationToken)
                     .ConfigureAwait(false));
+            }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Twitch media playlist fetch timed out for {Channel}", channel);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -258,6 +266,84 @@ internal sealed partial class TwitchStreamHostDiscoverer(
         catch (FormatException)
         {
         }
+    }
+
+    private async Task<HttpResponseMessage?> SendWithRetryAsync(
+        Func<HttpRequestMessage> requestFactory,
+        string channel,
+        string what,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                using var request = requestFactory();
+                var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                    return response;
+
+                var status = (int)response.StatusCode;
+                if (status is 429 or >= 500)
+                {
+                    var retryAfter = response.Headers.RetryAfter?.Delta?.TotalSeconds;
+                    var delay = retryAfter is > 0
+                        ? TimeSpan.FromSeconds(retryAfter.Value)
+                        : attempt < RetryDelays.Length ? RetryDelays[attempt] : TimeSpan.Zero;
+                    logger.LogWarning(
+                        "Twitch {What} for {Channel} failed: {Status} (attempt {Attempt}/{MaxRetries}); retrying in {Delay}s",
+                        what,
+                        channel,
+                        status,
+                        attempt + 1,
+                        MaxRetries + 1,
+                        delay.TotalSeconds);
+                    response.Dispose();
+                    if (attempt < MaxRetries)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Twitch {What} for {Channel} failed: {Status}",
+                        what,
+                        channel,
+                        status);
+                }
+
+                response.Dispose();
+                return null;
+            }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Twitch {What} request for {Channel} timed out", what, channel);
+                if (attempt < MaxRetries)
+                {
+                    var delay = attempt < RetryDelays.Length ? RetryDelays[attempt] : TimeSpan.Zero;
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return null;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Twitch {What} request for {Channel} failed (network)", what, channel);
+                if (attempt < MaxRetries)
+                {
+                    var delay = attempt < RetryDelays.Length ? RetryDelays[attempt] : TimeSpan.Zero;
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                return null;
+            }
+        }
+
+        return null;
     }
 
     private sealed record PlaybackToken(string Value, string Signature);

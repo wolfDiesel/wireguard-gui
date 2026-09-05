@@ -45,7 +45,7 @@ public class SaveProfileSplitRoutingHandlerTests
         var root = Path.Combine(Path.GetTempPath(), "wg-save-" + Guid.NewGuid().ToString("N"));
         var store = new JsonProfileStore(root, NullLogger<JsonProfileStore>.Instance);
         var parser = new WireGuardConfigParser();
-        var dnsSync = new ProfileConfigDnsSync(store, parser);
+        var dnsSync = new ProfileConfigDnsSync(new WireGuardConfigRepository(store, parser), parser);
         var profile = VpnProfile.Create("p", BackendKind.Native, "p");
 
         try
@@ -83,7 +83,7 @@ public class SaveProfileSplitRoutingHandlerTests
         var root = Path.Combine(Path.GetTempPath(), "wg-save-dns-" + Guid.NewGuid().ToString("N"));
         var store = new JsonProfileStore(root, NullLogger<JsonProfileStore>.Instance);
         var parser = new WireGuardConfigParser();
-        var dnsSync = new ProfileConfigDnsSync(store, parser);
+        var dnsSync = new ProfileConfigDnsSync(new WireGuardConfigRepository(store, parser), parser);
         var profile = VpnProfile.Create("p", BackendKind.Native, "p");
 
         try
@@ -123,7 +123,7 @@ public class SaveProfileSplitRoutingHandlerTests
         var root = Path.Combine(Path.GetTempPath(), "wg-save-bad-dns-" + Guid.NewGuid().ToString("N"));
         var store = new JsonProfileStore(root, NullLogger<JsonProfileStore>.Instance);
         var parser = new WireGuardConfigParser();
-        var dnsSync = new ProfileConfigDnsSync(store, parser);
+        var dnsSync = new ProfileConfigDnsSync(new WireGuardConfigRepository(store, parser), parser);
         var profile = VpnProfile.Create("p", BackendKind.Native, "p");
 
         try

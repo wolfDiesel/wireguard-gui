@@ -178,6 +178,44 @@ public class PolicyRoutingSetupTests
         Assert.Null(exception);
     }
 
+    [Fact]
+    public async Task ApplyAsync_EndpointRoute_UsesNonWireGuardDefaultRoute()
+    {
+        var runner = new TrackingProcessRunner
+        {
+            DefaultRoute = "default via 192.168.1.1 dev enp3s0",
+            WgInterfaces = "wg0",
+        };
+        var context = CreateContext(runner);
+
+        var result = await context.Setup.ApplyAsync(context.Profile, ["1.1.1.1/32"]);
+
+        Assert.True(result.Success);
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => MatchesIp(c, "route", "replace", "1.2.3.4/32", "via", "192.168.1.1", "dev", "enp3s0"));
+    }
+
+    [Fact]
+    public async Task ApplyAsync_EndpointRoute_SkipsWireGuardDefaultRoute()
+    {
+        var runner = new TrackingProcessRunner
+        {
+            DefaultRoute = "default via 192.168.1.1 dev wg0",
+            WgInterfaces = "wg0",
+        };
+        var context = CreateContext(runner);
+
+        var result = await context.Setup.ApplyAsync(context.Profile, ["1.1.1.1/32"]);
+
+        Assert.True(result.Success);
+        Assert.DoesNotContain(
+            runner.PrivilegedCommands,
+            c => c.FileName == "ip" && c.Arguments.Length >= 2 &&
+                 c.Arguments[0] == "route" && c.Arguments[1] == "replace" &&
+                 c.Arguments.Contains("1.2.3.4/32"));
+    }
+
     private static bool MatchesIp((string FileName, string[] Arguments) command, params string[] expected) =>
         command.FileName == "ip" && command.Arguments.SequenceEqual(expected);
 
@@ -212,6 +250,10 @@ public class PolicyRoutingSetupTests
             store,
             new WireGuardConfigParser(),
             dnsProxy,
+            new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance),
+            new NftSetManager(runner),
+            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance),
+            new EndpointRouteGuard(runner, store, new WireGuardConfigParser(), NullLogger<EndpointRouteGuard>.Instance),
             NullLogger<PolicyRoutingSetup>.Instance);
 
         return new TestContext(setup, profile, root, dnsProxy);

@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.8] - 2026-09-05
+
+### Added
+
+- Split routing hardening (audit round 2): config repository, Application-layer refresh service, and D-Bus DNS monitor.
+- `WireGuardConfigRepository` — single locked access point for `wireguard.conf` (read/write/atomic update); eliminates races between parallel apply and save.
+- `SplitRoutingRefreshService` moved from the UI layer into Application; UI supplies `ISplitRoutingTimer` (Avalonia `DispatcherTimer`) and `ISplitRoutingRefreshNotifier` (toasts) as ports. Background refresh no longer depends on presentation.
+- `SystemdResolvedMonitorClient` (D-Bus `io.systemd.Resolve.Monitor`) is now the only DNS route monitor: no pkexec/FIFO, works on any systemd-resolved stack.
+- Pretty test runner: `./test.sh` (Spectre.Console) prints `✅`/`❌` per test with a summary.
+
+### Fixed
+
+- Twitch GQL timeout crashes the app on repeat connect: `HttpClient.Timeout` throws `TaskCanceledException` (a subclass of `OperationCanceledException`) which slipped past both `is not OperationCanceledException` filters; it is now retried like a network error and real cancellations still propagate.
+- `EnsureEndpointRoute` no longer hardcodes `dev home`/`dev wg` — only WireGuard interfaces (`wg show interfaces` + current profile iface) are excluded; warning when no non-tunnel default route candidate remains.
+- `ApplySplitRoutingHandler` now calls `SplitRoutingSettings.Normalize()` (max routes clamp, domain dedupe) before collecting routes.
+- Twitch discovery retries on HTTP 429/5xx honoring `Retry-After`; offline vs rate-limit vs network failures are logged distinctly.
+
+### Changed
+
+- `PolicyRoutingSetup` split into `IpRuleManager`, `NftSetManager`, `TunnelDnsManager`, `EndpointRouteGuard`, and `PolicyRoutingCommands` (orchestrator ~240 lines; behavior unchanged).
+- `DomainRouteDnsProxy` documented as a fallback (not wired into DI) per explicit user decision.
+- DNS route monitor parses systemd-resolved D-Bus frames (A/AAAA) instead of `resolvectl monitor` FIFO lines.
+
 ## [1.4.7] - 2026-09-04
 
 ### Added

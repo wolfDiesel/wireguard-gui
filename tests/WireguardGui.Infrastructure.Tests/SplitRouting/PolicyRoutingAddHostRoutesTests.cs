@@ -123,6 +123,10 @@ public class PolicyRoutingAddHostRoutesTests
             store,
             new WireGuardConfigParser(),
             new FakeDomainRouteDnsProxy(),
+            new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance),
+            new NftSetManager(runner),
+            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance),
+            new EndpointRouteGuard(runner, store, new WireGuardConfigParser(), NullLogger<EndpointRouteGuard>.Instance),
             NullLogger<PolicyRoutingSetup>.Instance);
 
         return new TestContext(setup, profile);

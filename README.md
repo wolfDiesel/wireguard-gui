@@ -24,6 +24,7 @@ Desktop WireGuard client for **Linux** with an **Avalonia** UI. Manage VPN profi
   - Cloudflare CDN ranges,
   - custom domains (DNS resolve → CIDR in `AllowedIPs`).
 - **Apply routes** — scan, write `AllowedIPs` to the config, auto-reconnect in NetworkManager when already connected; progress UI during long scans.
+- **Dynamic DNS routes** — live host routes for Twitch/custom domains via systemd-resolved D-Bus monitor (no pkexec/FIFO).
 - **Single privileged session** — one `pkexec` shell for batched `nmcli` / `wg` commands instead of repeated password prompts.
 - **Linux desktop integration**
   - System tray (Show / Connect / Disconnect / Quit) via `libayatana-appindicator3`.
@@ -52,6 +53,12 @@ Tests:
 
 ```bash
 dotnet test
+```
+
+Красивый вывод с зелёными галочками (Spectre.Console, парсинг TRX):
+
+```bash
+./test.sh
 ```
 
 ## Data directory

@@ -1,17 +1,20 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using WireguardGui.Application.Abstractions;
 using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.SplitRouting;
 
+/// <summary>
+/// Мониторинг DNS-резолвов через systemd-resolved D-Bus-сокет
+/// (<see cref="SystemdResolvedMonitorClient"/>). Выбран как единственный
+/// механизм (пункт 8 анализа): не требует pkexec/FIFO и работает
+/// на любом стеке с systemd-resolved.
+/// </summary>
 public sealed class ResolvedDnsRouteMonitor(
     IPolicyRoutingSetup policyRoutingSetup,
-    IProcessRunner processRunner,
-    IAppDataPaths appDataPaths,
     ILogger<ResolvedDnsRouteMonitor> logger) : IResolvedDnsRouteMonitor, IAsyncDisposable
 {
     private readonly object _gate = new();
@@ -22,7 +25,6 @@ public sealed class ResolvedDnsRouteMonitor(
     private Task? _flusher;
     private VpnProfile? _profile;
     private IReadOnlyList<string> _suffixes = [];
-    private int? _monitorPid;
 
     public bool IsRunning
     {
@@ -53,15 +55,6 @@ public sealed class ResolvedDnsRouteMonitor(
             return;
         }
 
-        if (!processRunner.IsCommandAvailable("resolvectl"))
-        {
-            logger.LogWarning(
-                "Resolved DNS route monitor skipped for {Profile}: resolvectl not found (install systemd / systemd-resolved)",
-                profile.Name);
-            await StopAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
         await StopAsync(cancellationToken).ConfigureAwait(false);
 
         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -87,7 +80,6 @@ public sealed class ResolvedDnsRouteMonitor(
         Task? loop;
         Task? flusher;
         string? name;
-        int? pid;
 
         lock (_gate)
         {
@@ -95,13 +87,11 @@ public sealed class ResolvedDnsRouteMonitor(
             loop = _loop;
             flusher = _flusher;
             name = _profile?.Name;
-            pid = _monitorPid;
             _cts = null;
             _loop = null;
             _flusher = null;
             _profile = null;
             _suffixes = [];
-            _monitorPid = null;
             _queued.Clear();
         }
 
@@ -116,7 +106,6 @@ public sealed class ResolvedDnsRouteMonitor(
         {
         }
 
-        await StopPrivilegedMonitorAsync(pid, cancellationToken).ConfigureAwait(false);
         await WaitQuietAsync(loop, cancellationToken).ConfigureAwait(false);
         await WaitQuietAsync(flusher, cancellationToken).ConfigureAwait(false);
         cts.Dispose();
@@ -136,67 +125,12 @@ public sealed class ResolvedDnsRouteMonitor(
         var delay = TimeSpan.FromSeconds(2);
         while (!cancellationToken.IsCancellationRequested)
         {
-            FileStream? fifo = null;
             try
             {
-                Directory.CreateDirectory(appDataPaths.DataRoot);
-                var fifoPath = FifoPath;
-                await EnsureFifoAsync(fifoPath, cancellationToken).ConfigureAwait(false);
-
-                // Open reader first so the privileged writer does not block forever.
-                var openRead = Task.Run(
-                    () => new FileStream(
-                        fifoPath,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.ReadWrite),
-                    cancellationToken);
-
-                var start = await processRunner.RunPrivilegedShellAsync(
-                        BuildStartMonitorScript(fifoPath),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (!start.IsSuccess)
-                    throw new InvalidOperationException(
-                        string.IsNullOrWhiteSpace(start.StandardError)
-                            ? "Failed to start resolvectl monitor"
-                            : start.StandardError.Trim());
-
-                var pidLine = start.StandardOutput
-                    .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .LastOrDefault();
-                if (!int.TryParse(pidLine, out var pid) || pid <= 0)
-                {
-                    throw new InvalidOperationException(
-                        "resolvectl monitor did not return a PID: " + start.StandardOutput.Trim());
-                }
-
-                lock (_gate)
-                    _monitorPid = pid;
-
-                using var openCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                openCts.CancelAfter(TimeSpan.FromSeconds(15));
-                fifo = await openRead.WaitAsync(openCts.Token).ConfigureAwait(false);
-
-                logger.LogInformation(
-                    "resolvectl monitor attached (pid {Pid}, via existing privileged session)",
-                    pid);
-
-                using var reader = new StreamReader(fifo, Encoding.UTF8);
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                    if (line is null)
-                        break;
-
-                    if (!TryParseResolvectlMonitorLine(line, out var host, out var address))
-                        continue;
-
-                    await OnResolvedAsync(host, address, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (!cancellationToken.IsCancellationRequested)
-                    throw new EndOfStreamException("resolvectl monitor pipe closed");
+                await SystemdResolvedMonitorClient.SubscribeAsync(
+                    OnResolvedAsync,
+                    logger,
+                    cancellationToken).ConfigureAwait(false);
                 return;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -205,15 +139,7 @@ public sealed class ResolvedDnsRouteMonitor(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "resolvectl monitor failed; retrying in {Delay}", delay);
-                int? pid;
-                lock (_gate)
-                {
-                    pid = _monitorPid;
-                    _monitorPid = null;
-                }
-
-                await StopPrivilegedMonitorAsync(pid, CancellationToken.None).ConfigureAwait(false);
+                logger.LogWarning(ex, "resolved D-Bus monitor failed; retrying in {Delay}", delay);
                 try
                 {
                     await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
@@ -226,80 +152,13 @@ public sealed class ResolvedDnsRouteMonitor(
                 if (delay < TimeSpan.FromMinutes(1))
                     delay = TimeSpan.FromSeconds(Math.Min(60, delay.TotalSeconds * 2));
             }
-            finally
-            {
-                if (fifo is not null)
-                    await fifo.DisposeAsync().ConfigureAwait(false);
-            }
         }
     }
 
-    private async Task EnsureFifoAsync(string fifoPath, CancellationToken cancellationToken)
-    {
-        if (File.Exists(fifoPath))
-            return;
-
-        var result = await processRunner.RunPrivilegedShellAsync(
-                $"rm -f {ShellQuote(fifoPath)}; mkfifo {ShellQuote(fifoPath)}; chmod 666 {ShellQuote(fifoPath)}",
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (!result.IsSuccess)
-            throw new InvalidOperationException(result.StandardError.Trim());
-    }
-
-    private string BuildStartMonitorScript(string fifoPath)
-    {
-        var fifo = ShellQuote(fifoPath);
-        var pidFile = ShellQuote(PidFilePath);
-        return $"""
-            PIDFILE={pidFile}
-            FIFO={fifo}
-            if [ -f "$PIDFILE" ]; then
-              OLD="$(cat "$PIDFILE" 2>/dev/null || true)"
-              if [ -n "$OLD" ]; then
-                pkill -TERM -P "$OLD" 2>/dev/null || true
-                kill "$OLD" 2>/dev/null || true
-              fi
-              rm -f "$PIDFILE"
-            fi
-            if ! command -v resolvectl >/dev/null 2>&1; then
-              echo "resolvectl not found" >&2
-              exit 1
-            fi
-            if [ ! -p "$FIFO" ]; then
-              rm -f "$FIFO"
-              mkfifo "$FIFO"
-              chmod 666 "$FIFO"
-            fi
-            # Child of the existing pkexec helper — no second password / polkit prompt.
-            setsid bash -c 'resolvectl monitor >'"$FIFO"' 2>/dev/null' >/dev/null 2>&1 &
-            echo $! | tee "$PIDFILE"
-            """;
-    }
-
-    private async Task StopPrivilegedMonitorAsync(int? pid, CancellationToken cancellationToken)
-    {
-        if (pid is null or <= 0)
-            return;
-
-        try
-        {
-            await processRunner.RunPrivilegedShellAsync(
-                    $"pkill -TERM -P {pid.Value} 2>/dev/null || true; kill {pid.Value} 2>/dev/null || true; sleep 0.1; pkill -KILL -P {pid.Value} 2>/dev/null || true; kill -9 {pid.Value} 2>/dev/null || true; rm -f {ShellQuote(PidFilePath)}",
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to stop resolvectl monitor pid {Pid}", pid);
-        }
-    }
-
-    private string FifoPath => Path.Combine(appDataPaths.DataRoot, "resolvectl-monitor.fifo");
-
-    private string PidFilePath => Path.Combine(appDataPaths.DataRoot, "resolvectl-monitor.pid");
-
-    private Task OnResolvedAsync(string host, IPAddress address, CancellationToken cancellationToken)
+    private Task OnResolvedAsync(
+        string host,
+        IReadOnlyList<IPAddress> addresses,
+        CancellationToken cancellationToken)
     {
         IReadOnlyList<string> suffixes;
         lock (_gate)
@@ -308,10 +167,13 @@ public sealed class ResolvedDnsRouteMonitor(
         if (!DnsRouteSuffixes.Matches(host, suffixes))
             return Task.CompletedTask;
 
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-            _queued[address + "/32"] = 0;
-        else if (address.AddressFamily == AddressFamily.InterNetworkV6)
-            _queued[address + "/128"] = 0;
+        foreach (var address in addresses)
+        {
+            if (address.AddressFamily == AddressFamily.InterNetwork)
+                _queued[address + "/32"] = 0;
+            else if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                _queued[address + "/128"] = 0;
+        }
 
         return Task.CompletedTask;
     }
@@ -371,46 +233,6 @@ public sealed class ResolvedDnsRouteMonitor(
         {
             _flushLock.Release();
         }
-    }
-
-    private static string ShellQuote(string value) => "'" + value.Replace("'", "'\\''") + "'";
-
-    internal static bool TryParseResolvectlMonitorLine(
-        string line,
-        out string host,
-        out IPAddress address)
-    {
-        host = string.Empty;
-        address = IPAddress.None;
-
-        var trimmed = line.Trim();
-        if (!trimmed.StartsWith("← A:", StringComparison.Ordinal) &&
-            !trimmed.StartsWith("<- A:", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var payload = trimmed.StartsWith("← A:", StringComparison.Ordinal)
-            ? trimmed["← A:".Length..].Trim()
-            : trimmed["<- A:".Length..].Trim();
-
-        var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 4)
-            return false;
-        if (!string.Equals(parts[1], "IN", StringComparison.OrdinalIgnoreCase))
-            return false;
-        if (!string.Equals(parts[2], "A", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(parts[2], "AAAA", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!IPAddress.TryParse(parts[3], out var parsed))
-            return false;
-
-        host = parts[0].TrimEnd('.');
-        address = parsed;
-        return host.Length > 0;
     }
 
     private static async Task WaitQuietAsync(Task? task, CancellationToken cancellationToken)

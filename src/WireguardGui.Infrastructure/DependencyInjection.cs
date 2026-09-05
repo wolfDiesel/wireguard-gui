@@ -37,9 +37,14 @@ public static class DependencyInjection
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IWireGuardConfigValidator, WireGuardConfigValidator>();
         services.AddSingleton<IWireGuardConfigParser, WireGuardConfigParser>();
+        services.AddSingleton<IWireGuardConfigRepository, WireGuardConfigRepository>();
         services.AddSingleton<IProfileConfigDnsSync, ProfileConfigDnsSync>();
         services.AddSingleton<IDomainRouteDnsProxy, DomainRouteDnsProxy>();
         services.AddSingleton<ISystemResumeWatcher, SystemResumeWatcher>();
+        services.AddSingleton<IpRuleManager>();
+        services.AddSingleton<NftSetManager>();
+        services.AddSingleton<TunnelDnsManager>();
+        services.AddSingleton<EndpointRouteGuard>();
         services.AddSingleton<IPolicyRoutingSetup, PolicyRoutingSetup>();
         services.AddSingleton<IResolvedDnsRouteMonitor, ResolvedDnsRouteMonitor>();
         services.AddSingleton<ISplitRoutingConfigUpdater, SplitRoutingConfigUpdater>();

@@ -20,7 +20,11 @@ internal static class ServiceRegistration
         services.AddSingleton<ThemeService>();
         services.AddSingleton<AppToastService>();
         services.AddSingleton<StatusBarService>();
-        services.AddSingleton<ISplitRoutingRefreshScheduler, SplitRoutingRefreshScheduler>();
+        services.AddSingleton<ISplitRoutingTimer, AvaloniaSplitRoutingTimer>();
+        services.AddSingleton<ISplitRoutingRefreshNotifier, SplitRoutingRefreshNotifier>();
+        services.AddSingleton<SplitRoutingRefreshScheduler>();
+        services.AddSingleton<ISplitRoutingRefreshScheduler>(
+            sp => sp.GetRequiredService<SplitRoutingRefreshScheduler>());
         services.AddSingleton<SplitRoutingPanelViewModel>();
         services.AddSingleton<ProfilesViewModel>();
         services.AddSingleton<SettingsViewModel>();

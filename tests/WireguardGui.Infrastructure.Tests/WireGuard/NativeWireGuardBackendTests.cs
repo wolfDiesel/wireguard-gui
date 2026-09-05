@@ -124,7 +124,7 @@ public class SplitRoutingConfigUpdaterTests
                 [SplitRouteSourceTestFactory.CreateTelegramSource(new FakeProcessRunner())],
                 NullLogger<SplitRouteBuilder>.Instance);
             var updater = new SplitRoutingConfigUpdater(
-                store,
+                new WireGuardConfigRepository(store, new WireGuardConfigParser()),
                 builder,
                 new WireGuardConfigParser(),
                 new FakePolicyRoutingSetup(),
@@ -174,7 +174,7 @@ public class SplitRoutingConfigUpdaterTests
                 ],
                 NullLogger<SplitRouteBuilder>.Instance);
             var updater = new SplitRoutingConfigUpdater(
-                store,
+                new WireGuardConfigRepository(store, new WireGuardConfigParser()),
                 builder,
                 new WireGuardConfigParser(),
                 new FakePolicyRoutingSetup(),
@@ -222,7 +222,7 @@ public class SplitRoutingConfigUpdaterTests
                 [SplitRouteSourceTestFactory.CreateTelegramSource(new FakeProcessRunner())],
                 NullLogger<SplitRouteBuilder>.Instance);
             var updater = new SplitRoutingConfigUpdater(
-                store,
+                new WireGuardConfigRepository(store, new WireGuardConfigParser()),
                 builder,
                 new WireGuardConfigParser(),
                 new FakePolicyRoutingSetup { IsAvailable = true },
