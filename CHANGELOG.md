@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.9] - 2026-09-05
+
+### Fixed
+
+- **App froze on startup with no window (regression in 1.4.8)**: circular DI dependency — the UI wrapper `SplitRoutingRefreshScheduler` resolved `ISplitRoutingRefreshScheduler`, which resolved back into the same wrapper. The container spun on `StackGuard` and hung the main thread before `window.Show()`. Removed the wrapper registration so `ISplitRoutingRefreshScheduler` resolves directly to the Application-layer `SplitRoutingRefreshService`.
+
 ## [1.4.8] - 2026-09-05
 
 ### Added
