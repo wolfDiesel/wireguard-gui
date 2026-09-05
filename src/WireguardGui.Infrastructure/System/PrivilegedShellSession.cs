@@ -10,6 +10,7 @@ namespace WireguardGui.Infrastructure.System;
 internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
 {
     private const string HelperScript = """
+
         #!/bin/bash
         while IFS= read -r encoded; do
           [ -z "$encoded" ] && continue
@@ -68,6 +69,8 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         await ResetAsync().ConfigureAwait(false);
         _gate.Dispose();
     }
+
+    public bool IsRunning => _process is { HasExited: false };
 
     private async Task EnsureStartedAsync(CancellationToken cancellationToken)
     {

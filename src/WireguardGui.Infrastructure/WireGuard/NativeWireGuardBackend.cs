@@ -38,10 +38,14 @@ public sealed class NativeWireGuardBackend(
         VpnProfile profile,
         CancellationToken cancellationToken = default)
     {
-        var result = await processRunner.RunAsync("wg", ["show"], cancellationToken);
+        // wg show требует CAP_NET_ADMIN; если pkexec-сессия уже авторизована
+        // (пользователь подключал/отключал интерфейс), читаем статус через неё —
+        // иначе деградируем до прежнего поведения (без прав, статус Unknown).
+        var result = processRunner.HasActivePrivilegedSession
+            ? await processRunner.RunPrivilegedAsync("wg", ["show"], cancellationToken)
+            : await processRunner.RunAsync("wg", ["show"], cancellationToken);
         if (!result.IsSuccess)
             return ConnectionState.Unknown;
-
         foreach (var line in result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             if (!line.StartsWith("interface:", StringComparison.OrdinalIgnoreCase))

@@ -50,6 +50,42 @@ public class NativeWireGuardBackendTests
 
         Assert.Equal(ConnectionState.Disconnected, state);
     }
+
+    [Fact]
+    public async Task GetConnectionState_UsesPrivilegedSession_WhenActive()
+    {
+        var runner = new FakeProcessRunner
+        {
+            WgShowOutput = "interface: wg-ak\n  public key: abc\n",
+            HasActivePrivilegedSession = true,
+        };
+        var store = TestStoreFactory.Create(Path.Combine(Path.GetTempPath(), "wg-" + Guid.NewGuid().ToString("N")));
+        var backend = new NativeWireGuardBackend(runner, store);
+        var profile = VpnProfile.Create("p", BackendKind.Native, "wg-ak");
+
+        var state = await backend.GetConnectionStateAsync(profile);
+
+        Assert.Equal(ConnectionState.Connected, state);
+        Assert.True(runner.PrivilegedCallCount > 0, "Expected wg show via privileged session");
+    }
+
+    [Fact]
+    public async Task GetConnectionState_FallsBackToUnprivileged_WhenNoSession()
+    {
+        var runner = new FakeProcessRunner
+        {
+            WgShowOutput = "interface: wg-ak\n  public key: abc\n",
+            HasActivePrivilegedSession = false,
+        };
+        var store = TestStoreFactory.Create(Path.Combine(Path.GetTempPath(), "wg-" + Guid.NewGuid().ToString("N")));
+        var backend = new NativeWireGuardBackend(runner, store);
+        var profile = VpnProfile.Create("p", BackendKind.Native, "wg-ak");
+
+        var state = await backend.GetConnectionStateAsync(profile);
+
+        Assert.Equal(ConnectionState.Connected, state);
+        Assert.Equal(0, runner.PrivilegedCallCount);
+    }
 }
 
 public class WireGuardConfigParserEdgeTests

@@ -11,6 +11,9 @@ public sealed class ProcessRunner(ILogger<ProcessRunner> logger) : IProcessRunne
 {
     private PrivilegedShellSession? _privilegedSession;
 
+    public bool HasActivePrivilegedSession =>
+        _privilegedSession is { IsRunning: true };
+
     public bool IsCommandAvailable(string command)
     {
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;

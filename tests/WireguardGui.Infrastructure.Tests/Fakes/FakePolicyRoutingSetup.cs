@@ -138,4 +138,6 @@ internal sealed class TrackingProcessRunner : IProcessRunner
         PrivilegedShellScripts.Add(script);
         return Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
     }
+
+    public bool HasActivePrivilegedSession { get; set; }
 }

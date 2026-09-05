@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.10] - 2026-09-05
+
+### Fixed
+
+- **Native backend connection status now updates after connect** (issue #1): `wg show` requires `CAP_NET_ADMIN`, so it silently failed with `Operation not permitted` and the status stayed `Unknown`. It now runs through the already-authorized pkexec session (`HasActivePrivilegedSession`) with no extra password prompt; falls back to the unprivileged path when no session exists (e.g. right after app start).
+
 ## [1.4.9] - 2026-09-05
 
 ### Fixed

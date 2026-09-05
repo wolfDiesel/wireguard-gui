@@ -66,5 +66,7 @@ public class SystemCapabilityProbeTests
 
         public Task<ProcessResult> RunPrivilegedShellAsync(string script, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
+
+        public bool HasActivePrivilegedSession { get; set; }
     }
 }

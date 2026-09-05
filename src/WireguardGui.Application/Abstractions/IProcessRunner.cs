@@ -21,5 +21,12 @@ public interface IProcessRunner
         string script,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// True, когда привилегированная (pkexec) сессия уже авторизована и жива.
+    /// Позволяет выполнять дешёвые привилегированные пробы (например, wg show)
+    /// без нового запроса пароля; при отсутствии сессии — использовать fallback.
+    /// </summary>
+    bool HasActivePrivilegedSession { get; }
+
     bool IsCommandAvailable(string command);
 }

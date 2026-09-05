@@ -25,13 +25,20 @@ internal sealed class FakeProcessRunner : IProcessRunner
         return Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
     }
 
-    public Task<ProcessResult> RunPrivilegedAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default) =>
-        RunAsync(fileName, arguments, cancellationToken);
+    public Task<ProcessResult> RunPrivilegedAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    {
+        PrivilegedCallCount++;
+        return RunAsync(fileName, arguments, cancellationToken);
+    }
 
     public Task<ProcessResult> RunPrivilegedShellAsync(string script, CancellationToken cancellationToken = default) =>
         Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
 
+    public bool HasActivePrivilegedSession { get; set; }
+
     public string WgShowOutput { get; set; } = string.Empty;
+
+    public int PrivilegedCallCount { get; private set; }
 }
 
 internal static class TestStoreFactory
