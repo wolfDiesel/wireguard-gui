@@ -16,7 +16,9 @@
       <DataTemplate x:DataType="services:AppToastItemViewModel">
         <Border Classes="app-toast"
                 MinWidth="280"
-                MaxWidth="380">
+                MaxWidth="380"
+                PointerEntered="OnToastPointerEntered"
+                PointerExited="OnToastPointerExited">
           <Grid ColumnDefinitions="Auto,*,Auto"
                 ColumnSpacing="10"
                 VerticalAlignment="Center">

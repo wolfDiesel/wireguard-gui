@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.13] - 2026-09-08
+
+### Fixed
+
+- **Toasts no longer pile up / disappear automatically**: toasts shown from a background thread (e.g. split-routing refresh) created their `DispatcherTimer` on a non-UI thread, so the timeout tick never ran and toasts stuck around forever. `AppToastService.Show`/`Dismiss` now force execution onto the UI dispatcher. Hovering a toast pauses its timer; leaving restarts the full 4 s timeout.
+
 ## [1.4.12] - 2026-09-05
 
 ### Fixed
