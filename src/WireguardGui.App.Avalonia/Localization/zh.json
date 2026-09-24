@@ -90,7 +90,7 @@
   "Toast_Routes_Success": "路由已应用",
   "Toast_Routes_Success_Detail": "AllowedIPs 中有 {0} 条路由",
   "Toast_Routes_Limit": "路由限制",
-  "Toast_Routes_Limit_Detail": "已达到 200 条路由限制",
+  "Toast_Routes_Limit_Detail": "已达到 {0} 条路由限制",
   "Toast_Routes_Saved_Reconnect": "路由已保存到配置",
   "Toast_Routes_Saved_Reconnect_Detail": "{0} 条路由。请重新连接 VPN 以在 NetworkManager 中应用。",
   "Progress_Preparing": "准备中…",

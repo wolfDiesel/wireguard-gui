@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.14] - 2026-09-25
+
+### Fixed
+
+- **YouTube video stalled on full route sets**: when YouTube + Telegram + Twitch + Cloudflare + custom domains together exceeded `maxRoutes` (hard-capped at 200), the YouTube source (lowest priority) was truncated first and dropped the video CDN range `74.125.0.0/16`, so the watch page loaded but video playback did not. Raised `DefaultMaxRoutes` to 1000 and `MaxMaxRoutes` to 2000; the route-limit toast now shows the actual limit instead of a hard-coded "200".
+
 ## [1.4.13] - 2026-09-08
 
 ### Fixed

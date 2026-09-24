@@ -11,9 +11,9 @@ public sealed record SplitRoutingSettings(
     string? TwitchChannel = null,
     string? TunnelDns = null)
 {
-    public const int DefaultMaxRoutes = 200;
+    public const int DefaultMaxRoutes = 1000;
     public const int MinMaxRoutes = 1;
-    public const int MaxMaxRoutes = 200;
+    public const int MaxMaxRoutes = 2000;
 
     public static SplitRoutingSettings CreateDefault() =>
         new(

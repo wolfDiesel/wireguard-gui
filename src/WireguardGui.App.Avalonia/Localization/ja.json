@@ -90,7 +90,7 @@
   "Toast_Routes_Success": "ルートを適用しました",
   "Toast_Routes_Success_Detail": "AllowedIPs に {0} 件のルート",
   "Toast_Routes_Limit": "ルート上限",
-  "Toast_Routes_Limit_Detail": "200 件のルート上限に達しました",
+  "Toast_Routes_Limit_Detail": "{0} 件のルート上限に達しました",
   "Toast_Routes_Saved_Reconnect": "ルートを設定に保存しました",
   "Toast_Routes_Saved_Reconnect_Detail": "{0} 件のルート。NetworkManager で適用するには VPN を再接続してください。",
   "Progress_Preparing": "準備中…",

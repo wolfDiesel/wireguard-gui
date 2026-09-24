@@ -90,7 +90,7 @@
   "Toast_Routes_Success": "Rutas aplicadas",
   "Toast_Routes_Success_Detail": "{0} rutas en AllowedIPs",
   "Toast_Routes_Limit": "Límite de rutas",
-  "Toast_Routes_Limit_Detail": "Límite de 200 rutas alcanzado",
+  "Toast_Routes_Limit_Detail": "Límite de {0} rutas alcanzado",
   "Toast_Routes_Saved_Reconnect": "Rutas guardadas en config",
   "Toast_Routes_Saved_Reconnect_Detail": "{0} rutas. Reconecte la VPN para aplicar en NetworkManager.",
   "Progress_Preparing": "Preparando…",

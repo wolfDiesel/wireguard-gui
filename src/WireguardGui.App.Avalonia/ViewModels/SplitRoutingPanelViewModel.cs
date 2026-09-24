@@ -193,7 +193,7 @@ internal sealed partial class SplitRoutingPanelViewModel : LocalizedViewModelBas
 
             _toast.ShowSuccess(T("Toast_Routes_Success"), Tf("Toast_Routes_Success_Detail", result.RouteCount));
             if (result.RouteCount >= SplitRoutingSettings.DefaultMaxRoutes)
-                _toast.ShowInfo(T("Toast_Routes_Limit"), T("Toast_Routes_Limit_Detail"));
+                _toast.ShowInfo(T("Toast_Routes_Limit"), Tf("Toast_Routes_Limit_Detail", SplitRoutingSettings.DefaultMaxRoutes));
 
             if (_selectedProfile is not null)
             {
