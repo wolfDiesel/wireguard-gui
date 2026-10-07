@@ -19,7 +19,11 @@ dist/
 .cursor/
 .vscode/
 .idea/
-plan/
+# plan/ намеренно НЕ исключается: канонический план и skills должны быть
+# доступны инструментам агента (см. .cursor/rules/wireguard-gui.mdc).
+# В git не коммитится — запрет зафиксирован в .cursor/rules/chp-release.mdc.
+# ВАЖНО: клиент читает и .gitignore, и .git/info/exclude — исключение plan/
+# в любом из них делает канон нечитаемым для агента. Не добавлять.
 
 ## OS
 .DS_Store
