@@ -146,11 +146,16 @@ public class PolicyRoutingSetupTests
             c => c is { FileName: "resolvectl", Arguments: ["dns", "wg0", "8.8.8.8"] });
         Assert.Contains(
             runner.PrivilegedCommands,
-            c => c is { FileName: "resolvectl", Arguments: ["domain", "wg0", "~."] });
+            c => c is { FileName: "resolvectl", Arguments: var a } &&
+                 a.Length > 3 &&
+                 a[0] == "domain" &&
+                 a[1] == "wg0" &&
+                 a.Contains("~example.com") &&
+                 !a.Contains("~."));
     }
 
     [Fact]
-    public async Task ApplyAsync_PublicDns_CapturesAllDomains()
+    public async Task ApplyAsync_PublicDns_AddsDnsPolicyRule()
     {
         var runner = new TrackingProcessRunner();
         var context = CreateContext(runner, dns: "8.8.8.8");
@@ -227,7 +232,15 @@ public class PolicyRoutingSetupTests
         var root = Path.Combine(Path.GetTempPath(), "wg-policy-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var store = TestStoreFactory.Create(root);
-        var profile = VpnProfile.Create("p1", BackendKind.Nmcli, "wg0");
+        var profile = VpnProfile.Create("p1", BackendKind.Nmcli, "wg0") with
+        {
+            SplitRouting = SplitRoutingSettings.CreateDefault() with
+            {
+                Enabled = true,
+                Twitch = true,
+                CustomDomains = ["example.com"],
+            },
+        };
         if (profileId is not null)
             profile = profile with { Id = profileId };
         Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));

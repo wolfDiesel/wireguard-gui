@@ -213,6 +213,30 @@ public class SplitRoutingRefreshServiceTests
     }
 
     [Fact]
+    public async Task IsWatching_TracksWatchedProfile()
+    {
+        var profile = VpnProfile.Create("p", BackendKind.Native, "p") with
+        {
+            SplitRouting = SplitRoutingSettings.CreateDefault() with { Enabled = true, Twitch = true },
+        };
+        var (service, _, _, _, _) = CreateService(profile);
+
+        Assert.False(service.IsWatching(profile.Id));
+        Assert.False(service.IsWatching("other"));
+
+        service.NotifyProfileConnected(profile.Id);
+        await Task.Delay(100);
+
+        Assert.True(service.IsWatching(profile.Id));
+        Assert.False(service.IsWatching("other"));
+
+        service.NotifyProfileDisconnected(profile.Id);
+        await Task.Delay(100);
+
+        Assert.False(service.IsWatching(profile.Id));
+    }
+
+    [Fact]
     public async Task NotifyProfileDisconnected_StopsTimerAndDnsMonitor()
     {
         var profile = VpnProfile.Create("p", BackendKind.Native, "p") with

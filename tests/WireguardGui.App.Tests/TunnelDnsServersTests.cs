@@ -43,14 +43,6 @@ public class TunnelDnsServersTests
         Assert.Equal(expected, TunnelDnsServers.IsTunnelLocal(ip));
 
     [Fact]
-    public void ShouldCaptureAllDns_WhenAnyServersPresent()
-    {
-        Assert.True(TunnelDnsServers.ShouldCaptureAllDns(["10.8.0.1"]));
-        Assert.True(TunnelDnsServers.ShouldCaptureAllDns(["8.8.8.8"]));
-        Assert.False(TunnelDnsServers.ShouldCaptureAllDns([]));
-    }
-
-    [Fact]
     public void ResolveOrDefault_UsesGoogleDns()
     {
         Assert.Equal("8.8.8.8", TunnelDnsServers.Default);

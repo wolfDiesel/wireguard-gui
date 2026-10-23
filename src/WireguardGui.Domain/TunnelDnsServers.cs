@@ -62,6 +62,4 @@ public static class TunnelDnsServers
             || (bytes[0] == 192 && bytes[1] == 168)
             || (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127);
     }
-
-    public static bool ShouldCaptureAllDns(IReadOnlyList<string> servers) => servers.Count > 0;
 }

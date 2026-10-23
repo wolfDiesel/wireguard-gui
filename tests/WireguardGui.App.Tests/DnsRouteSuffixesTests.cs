@@ -38,4 +38,47 @@ public class DnsRouteSuffixesTests
         var settings = SplitRoutingSettings.CreateDefault() with { Enabled = false, Twitch = true };
         Assert.Empty(DnsRouteSuffixes.FromSettings(settings));
     }
+
+    [Fact]
+    public void ForTunnelDns_IncludesSplitDomainsAndTelegram()
+    {
+        var settings = SplitRoutingSettings.CreateDefault() with
+        {
+            Enabled = true,
+            Telegram = true,
+            Twitch = true,
+            Youtube = false,
+            CustomDomains = ["*.example.com"],
+        };
+
+        var domains = DnsRouteSuffixes.ForTunnelDns(settings);
+
+        Assert.Contains("example.com", domains);
+        Assert.Contains("ttvnw.net", domains);
+        Assert.Contains("telegram.org", domains);
+        Assert.Contains("t.me", domains);
+        Assert.DoesNotContain("googlevideo.com", domains);
+    }
+
+    [Fact]
+    public void ForTunnelDns_TelegramDisabled_OmitsTelegramDomains()
+    {
+        var settings = SplitRoutingSettings.CreateDefault() with
+        {
+            Enabled = true,
+            Telegram = false,
+            Youtube = false,
+            CustomDomains = ["example.com"],
+        };
+
+        var domains = DnsRouteSuffixes.ForTunnelDns(settings);
+
+        Assert.Equal(["example.com"], domains);    }
+
+    [Fact]
+    public void ForTunnelDns_Disabled_ReturnsEmpty()
+    {
+        var settings = SplitRoutingSettings.CreateDefault() with { Enabled = false, Telegram = true };
+        Assert.Empty(DnsRouteSuffixes.ForTunnelDns(settings));
+    }
 }

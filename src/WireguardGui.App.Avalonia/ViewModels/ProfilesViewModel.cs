@@ -83,6 +83,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     {
         await RefreshCapabilitiesAsync();
         await RefreshProfilesAsync();
+        await PollProfileStatesAsync();
         StartPolling();
     }
 
@@ -200,7 +201,7 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             _toast.ShowSuccess(T("Toast_Connect_Success"), row.Name);
         row.State = ConnectionState.Connected;
         OnSelectedProfileActionsChanged();
-        if (row.SplitRoutingEnabled)
+        if (row.SplitRoutingEnabled && !_refreshScheduler.IsWatching(row.Id))
             _refreshScheduler.NotifyProfileConnected(row.Id);
         await PollProfileStatesAsync();
     }
@@ -345,7 +346,6 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             if (row is null)
                 continue;
 
-            var wasConnected = row.State == ConnectionState.Connected;
             row.Name = item.Name;
             row.ConnectionName = item.ConnectionName;
             row.Backend = item.Backend;
@@ -354,12 +354,15 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             if (ReferenceEquals(SelectedProfile, row))
                 OnSelectedProfileActionsChanged();
 
-            if (!wasConnected && item.State == ConnectionState.Connected && item.SplitRoutingEnabled)
+            if (item.State == ConnectionState.Connected && item.SplitRoutingEnabled)
             {
+                if (_refreshScheduler.IsWatching(item.Id))
+                    continue;
+
                 _refreshScheduler.NotifyProfileConnected(item.Id);
                 _refreshScheduler.RequestForceRefresh();
             }
-            else if (wasConnected && item.State != ConnectionState.Connected)
+            else if (_refreshScheduler.IsWatching(item.Id))
             {
                 _refreshScheduler.NotifyProfileDisconnected(item.Id);
             }

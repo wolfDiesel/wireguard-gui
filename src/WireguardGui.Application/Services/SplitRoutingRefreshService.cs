@@ -102,6 +102,15 @@ public sealed class SplitRoutingRefreshService : ISplitRoutingRefreshScheduler, 
         _ = _dnsRouteMonitor.StopAsync();
     }
 
+    public bool IsWatching(string profileId)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+            return false;
+
+        lock (_gate)
+            return string.Equals(_watchedProfileId, profileId, StringComparison.Ordinal);
+    }
+
     public void RequestForceRefresh() => _ = RefreshTickAsync(force: true);
 
     public IDisposable BeginManualApply()

@@ -29,14 +29,16 @@ public sealed class TunnelDnsManager(
         if (profile.Backend == BackendKind.Nmcli)
             await ConfigureNmcliDnsFromConfigAsync(profile, cancellationToken).ConfigureAwait(false);
 
-        await ConfigureResolvedDnsAsync(iface, dnsServers, cancellationToken).ConfigureAwait(false);
+        var routingDomains = DnsRouteSuffixes.ForTunnelDns(profile.SplitRouting);
+        await ConfigureResolvedDnsAsync(iface, dnsServers, routingDomains, cancellationToken).ConfigureAwait(false);
         await EnsureDnsPolicyRoutesAsync(profile, iface, dnsServers, installedHosts, cancellationToken)
             .ConfigureAwait(false);
         logger.LogInformation(
-            "Policy routing {Profile}: tunnel DNS {Servers} on {Interface}",
+            "Policy routing {Profile}: tunnel DNS {Servers} on {Interface} for {DomainCount} split domains",
             profile.Name,
             string.Join(", ", dnsServers),
-            iface);
+            iface,
+            routingDomains.Count);
     }
 
     public async Task ClearTunnelDnsAsync(string iface, CancellationToken cancellationToken)
@@ -103,6 +105,7 @@ public sealed class TunnelDnsManager(
     private async Task ConfigureResolvedDnsAsync(
         string iface,
         IReadOnlyList<string> dnsServers,
+        IReadOnlyList<string> routingDomains,
         CancellationToken cancellationToken)
     {
         if (!processRunner.IsCommandAvailable("resolvectl"))
@@ -117,18 +120,13 @@ public sealed class TunnelDnsManager(
         dnsArgs.AddRange(dnsServers);
         await RunPrivilegedIgnoringErrorsAsync("resolvectl", dnsArgs, cancellationToken).ConfigureAwait(false);
 
-        if (TunnelDnsServers.ShouldCaptureAllDns(dnsServers))
-        {
-            await RunPrivilegedIgnoringErrorsAsync(
-                "resolvectl",
-                ["domain", iface, "~."],
-                cancellationToken).ConfigureAwait(false);
-            return;
-        }
+        var domainArgs = new List<string> { "domain", iface };
+        domainArgs.AddRange(routingDomains.Select(static domain => "~" + domain));
+        await RunPrivilegedIgnoringErrorsAsync("resolvectl", domainArgs, cancellationToken).ConfigureAwait(false);
 
         await RunPrivilegedIgnoringErrorsAsync(
             "resolvectl",
-            ["domain", iface],
+            ["default-route", iface, "no"],
             cancellationToken).ConfigureAwait(false);
     }
 

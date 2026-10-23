@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 
 namespace WireguardGui.Infrastructure.SplitRouting;
 
+internal sealed class ResolvedMonitorAuthorizationRequiredException(string message) : Exception(message);
+
 internal static class SystemdResolvedMonitorClient
 {
     public const string MonitorSocketPath = "/run/systemd/resolve/io.systemd.Resolve.Monitor";
@@ -61,6 +63,10 @@ internal static class SystemdResolvedMonitorClient
         if (root.TryGetProperty("error", out var errorElement))
         {
             var error = errorElement.GetString() ?? "unknown";
+            if (error.Contains("AuthenticationRequired", StringComparison.OrdinalIgnoreCase))
+                throw new ResolvedMonitorAuthorizationRequiredException(
+                    $"resolved monitor requires authorization: {error}");
+
             throw new InvalidOperationException($"resolved monitor error: {error}");
         }
 

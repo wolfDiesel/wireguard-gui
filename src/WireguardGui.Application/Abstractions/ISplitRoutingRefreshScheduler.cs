@@ -6,6 +6,8 @@ public interface ISplitRoutingRefreshScheduler
 
     void NotifyProfileDisconnected(string? profileId = null);
 
+    bool IsWatching(string profileId);
+
     void Stop();
 
     IDisposable BeginManualApply();

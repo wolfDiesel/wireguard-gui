@@ -15,7 +15,17 @@
 Основной путь — `IResolvedDnsRouteMonitor` (`ResolvedDnsRouteMonitor`): подписка на
 systemd-resolved через D-Bus-сокет `io.systemd.Resolve.Monitor` (Unix-сокет, без pkexec и FIFO).
 Совпавшие суффиксы батчатся и превращаются в `ip rule add` через привилегированную сессию.
+Если polkit запрещает подписку (`io.systemd.InteractiveAuthenticationRequired`),
+монитор переключается на привилегированный `resolvectl monitor` через уже открытую
+pkexec-сессию (FIFO в data root) — этот путь работал до 1.4.8 и остаётся fallback'ом.
 Параллельно продолжают работать dig-источники и плановый refresh.
+
+Захват системного DNS ограничен split-доменами: на wg-интерфейс ставятся routing domains
+(`resolvectl domain <iface> ~<suffix>`) для суффиксов из `DnsRouteSuffixes.ForTunnelDns`,
+а не `~.`, и снимается `resolvectl default-route <iface> no`. Иначе любой резолв
+(включая не относящиеся к split-routing короткоживущие домены) зависит от DNS через
+туннель: systemd-resolved считает wg-линк кандидатом по умолчанию и может вернуть ответ
+из туннеля (например, geography-mismatched edge-хост CDN) вместо локального резолвера.
 
 `DomainRouteDnsProxy` (UDP-прокси на `127.0.0.1:5399`, разбор DNS-сообщений, матчинг суффиксов)
 оставлен как резерв без привилегий и **намеренно не подключён**: `StartAsync` не вызывается.
@@ -30,6 +40,8 @@ systemd-resolved через D-Bus-сокет `io.systemd.Resolve.Monitor` (Unix-
 ## Последствия
 
 + Реактивный перехват без root, не требует изменения системного DNS.
++ Если D-Bus-подписка требует авторизации, live-маршруты продолжают ставиться через привилегированный `resolvectl monitor`.
++ DNS через туннель используется только для split-доменов; остальной системный DNS не зависит от VPN.
 − Не работает без systemd-resolved; там нужен fallback, а резервный прокси пока не активирован.
 − В коде существует намеренно отключённый компонент — это решение, а не забытый код (шаг 14-1 его документирует).
 

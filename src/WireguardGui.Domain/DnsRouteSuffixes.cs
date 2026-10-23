@@ -52,6 +52,19 @@ public static class DnsRouteSuffixes
         return suffixes.OrderBy(static s => s, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public static IReadOnlyList<string> ForTunnelDns(SplitRoutingSettings settings)
+    {
+        var suffixes = new HashSet<string>(FromSettings(settings), StringComparer.OrdinalIgnoreCase);
+
+        if (settings.Enabled && settings.Telegram)
+        {
+            suffixes.Add("telegram.org");
+            suffixes.Add("t.me");
+        }
+
+        return suffixes.OrderBy(static s => s, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static bool Matches(string host, IReadOnlyList<string> suffixes)
     {
         if (string.IsNullOrWhiteSpace(host) || suffixes.Count == 0)

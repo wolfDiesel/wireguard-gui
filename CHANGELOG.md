@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.15] - 2026-10-23
+
+### Fixed
+
+- **Domains with a short TTL stalled while connected (e.g. `*.tuna.am`)**: policy mode used
+  `resolvectl domain <iface> ~.` and sent *every* system DNS query through the tunnel to
+  `8.8.8.8`. With a remote resolver (~50–100 ms per uncached lookup, occasional timeouts) names
+  with a ~30 s TTL were re-resolved almost constantly and hung for seconds; each route refresh
+  added ~60 more queries to the same path. Tunnel DNS now applies routing domains only to
+  split-routing suffixes (`DnsRouteSuffixes.ForTunnelDns`: Twitch/YouTube/custom plus
+  `telegram.org`/`t.me`), so all other names keep using the local resolver. The tunnel link is
+  also removed as the resolved default route (`resolvectl default-route <iface> no`), otherwise
+  systemd-resolved could still answer non-split names (e.g. `*.tuna.am`) from `8.8.8.8` through
+  the tunnel and hand out a geographically distant CDN edge.
+- **Live DNS-route monitor was dead after 1.4.8 where polkit denies the D-Bus subscription**
+  (`io.systemd.InteractiveAuthenticationRequired`): the monitor logged a warning every minute and
+  dynamic `/32` routes for Twitch/custom domains were never installed. It now falls back to the
+  privileged `resolvectl monitor` (FIFO over the shared pkexec session, as in ≤1.4.7) and only
+  defers quietly while no privileged session is active.
+
+- **Split-routing refresh never started when the app was launched while the tunnel was already
+  up**: the profile list only reported a `disconnected → connected` transition to the scheduler, so
+  a profile that was already connected at startup never got its refresh timer or DNS-route monitor.
+  The poller now starts watching every connected profile with split routing enabled (and stops when
+  it disconnects or splits get disabled), and the first poll runs during startup.
+
 ## [1.4.14] - 2026-09-25
 
 ### Fixed
