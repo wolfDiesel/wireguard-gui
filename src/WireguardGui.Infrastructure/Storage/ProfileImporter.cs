@@ -12,6 +12,9 @@ public sealed class ProfileImporter(
     IWireGuardConfigParser configParser,
     ILogger<ProfileImporter> logger) : IProfileImporter
 {
+    private const string AmneziaWgBackendRequiredMessage =
+        "This is an AmneziaWG config; choose the AmneziaWG backend to import it";
+
     public async Task<ImportProfileResultDto> ImportFromFileAsync(
         string sourceConfigPath,
         BackendKind backend,
@@ -31,17 +34,26 @@ public sealed class ProfileImporter(
             return new ImportProfileResultDto(false, null, ex.Message);
         }
 
+        if (configParser.IsAmneziaWg(configContent) && backend != BackendKind.AmneziaWg)
+            return new ImportProfileResultDto(false, null, AmneziaWgBackendRequiredMessage);
+
         var fileName = Path.GetFileNameWithoutExtension(sourceConfigPath);
         var interfaceName = configParser.ReadInterfaceName(configContent);
-        var connectionName = backend == BackendKind.Nmcli
-            ? fileName
-            : !string.IsNullOrWhiteSpace(interfaceName) ? interfaceName : fileName;
 
-        if (!VpnProfileNaming.IsValidConnectionName(connectionName))
+        var connectionName = backend switch
+        {
+            BackendKind.Nmcli => fileName,
+            BackendKind.AmneziaWg => await ResolveAmneziaWgConnectionNameAsync(
+                string.IsNullOrWhiteSpace(interfaceName) ? fileName : interfaceName,
+                cancellationToken),
+            _ => !string.IsNullOrWhiteSpace(interfaceName) ? interfaceName : fileName,
+        };
+
+        if (!IsValidConnectionName(backend, connectionName))
             return new ImportProfileResultDto(false, null, "Invalid connection name in configuration");
 
         var configFileName = $"{connectionName}.conf";
-        if (backend == BackendKind.Nmcli)
+        if (backend is BackendKind.Nmcli or BackendKind.AmneziaWg)
             configContent = configParser.RemoveInterfaceName(configContent);
 
         var importedDns = configParser.ReadDnsServers(configContent);
@@ -69,5 +81,19 @@ public sealed class ProfileImporter(
             profile.ConnectionName);
 
         return new ImportProfileResultDto(true, profile.Id, null);
+    }
+
+    private static bool IsValidConnectionName(BackendKind backend, string connectionName) =>
+        backend == BackendKind.AmneziaWg
+            ? VpnProfileNaming.IsValidAmneziaWgInterfaceName(connectionName)
+            : VpnProfileNaming.IsValidConnectionName(connectionName);
+
+    private async Task<string> ResolveAmneziaWgConnectionNameAsync(
+        string candidate,
+        CancellationToken cancellationToken)
+    {
+        var profiles = await profileStore.ListProfilesAsync(cancellationToken);
+        var taken = profiles.Select(static profile => profile.ConnectionName).ToList();
+        return VpnProfileNaming.MakeUniqueAmneziaWgInterfaceName(candidate, taken);
     }
 }

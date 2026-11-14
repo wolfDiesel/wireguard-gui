@@ -9,7 +9,7 @@
         Padding="20">
   <StackPanel Spacing="16">
     <TextBlock x:Name="DialogTitle" Classes="page-title" />
-    <TextBlock Classes="text-muted" TextWrapping="Wrap" IsVisible="False" />
+    <TextBlock x:Name="ConfigKindHint" Classes="text-muted" TextWrapping="Wrap" IsVisible="False" />
 
     <StackPanel x:Name="NativePanel" Spacing="4">
       <RadioButton x:Name="NativeRadio" GroupName="backend" />
@@ -19,6 +19,11 @@
     <StackPanel x:Name="NmcliPanel" Spacing="4">
       <RadioButton x:Name="NmcliRadio" GroupName="backend" />
       <TextBlock x:Name="NmcliWarning" Classes="text-muted" Foreground="{DynamicResource DangerBrush}" IsVisible="False" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel x:Name="AmneziaWgPanel" Spacing="4">
+      <RadioButton x:Name="AmneziaWgRadio" GroupName="backend" />
+      <TextBlock x:Name="AmneziaWgWarning" Classes="text-muted" Foreground="{DynamicResource DangerBrush}" IsVisible="False" TextWrapping="Wrap" />
     </StackPanel>
 
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">

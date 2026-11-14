@@ -74,3 +74,37 @@ public sealed record OperationResultDto(
     OperationErrorCode ErrorCode = OperationErrorCode.None,
     string? ErrorMessage = null,
     string? WarningMessage = null);
+
+public sealed record AmneziaWgStatusDto(
+    bool IsAvailable,
+    IReadOnlyList<string> MissingComponents,
+    string? ToolsVersion,
+    AmneziaWgTransport Transport,
+    string? TransportVersion,
+    DistroFamily Distro);
+
+public sealed record BackendVersionDto(
+    string? ToolsVersion,
+    AmneziaWgTransport Transport,
+    string? TransportVersion);
+
+public sealed record BackendInstallStepDto(
+    string Title,
+    string Script,
+    bool BestEffort = false);
+
+public sealed record BackendInstallPlanDto(
+    DistroFamily Family,
+    IReadOnlyList<BackendInstallStepDto> Steps);
+
+public sealed record BackendInstallProgressDto(
+    int StepIndex,
+    int StepCount,
+    string Title,
+    string? Output);
+
+public sealed record BackendInstallResultDto(
+    bool Success,
+    string? ErrorMessage = null,
+    string? LastOutput = null,
+    bool NeedsAdmin = false);

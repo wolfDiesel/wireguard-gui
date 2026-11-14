@@ -91,7 +91,33 @@ public class PolicyRoutingAddHostRoutesTests
         Assert.Empty(runner.PrivilegedShellScripts);
     }
 
-    private static TestContext CreateContext(TrackingProcessRunner runner)
+    [Fact]
+    public async Task AddHostRoutesAsync_EvictsOldestMonitoredHostsOverBudget()
+    {
+        var runner = new TrackingProcessRunner();
+        var context = CreateContext(runner, maxRoutes: 2);
+        var table = PolicyRoutingNaming.RoutingTableId(context.Profile.Id).ToString();
+
+        await context.Setup.ApplyAsync(context.Profile, ["1.1.1.1/32"]);
+        runner.PrivilegedShellScripts.Clear();
+
+        await context.Setup.AddHostRoutesAsync(context.Profile, ["10.0.0.1/32"]);
+        await Task.Delay(20);
+        await context.Setup.AddHostRoutesAsync(context.Profile, ["10.0.0.2/32"]);
+        await Task.Delay(20);
+        runner.PrivilegedShellScripts.Clear();
+        await context.Setup.AddHostRoutesAsync(context.Profile, ["10.0.0.3/32"]);
+
+        Assert.Contains(
+            runner.PrivilegedShellScripts,
+            script => script.Contains("rule del pref 100 to '10.0.0.1/32'", StringComparison.Ordinal) &&
+                      script.Contains($"lookup {table}", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            runner.PrivilegedShellScripts,
+            script => script.Contains("rule del pref 100 to '1.1.1.1/32'", StringComparison.Ordinal));
+    }
+
+    private static TestContext CreateContext(TrackingProcessRunner runner, int maxRoutes = 0)
     {
         var root = Path.Combine(Path.GetTempPath(), "wg-addhost-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -102,6 +128,7 @@ public class PolicyRoutingAddHostRoutesTests
             {
                 Enabled = true,
                 Twitch = true,
+                MaxRoutes = maxRoutes > 0 ? maxRoutes : SplitRoutingSettings.DefaultMaxRoutes,
             },
         };
         Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));
@@ -122,10 +149,11 @@ public class PolicyRoutingAddHostRoutesTests
             runner,
             store,
             new WireGuardConfigParser(),
+            new WireGuardConfigRepository(store, new WireGuardConfigParser()),
             new FakeDomainRouteDnsProxy(),
             new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance),
             new NftSetManager(runner),
-            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance),
+            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance, new TunnelHealthProbe(runner)),
             new EndpointRouteGuard(runner, store, new WireGuardConfigParser(), NullLogger<EndpointRouteGuard>.Instance),
             NullLogger<PolicyRoutingSetup>.Instance);
 

@@ -207,4 +207,99 @@ public class WireGuardConfigParserTests
             """;
         Assert.Equal("2001:db8::1", _parser.ReadEndpointHost(config));
     }
+
+    [Fact]
+    public void IsAmneziaWg_DetectsObfuscationKeys()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            Jc = 4
+            Jmin = 50
+            Jmax = 1000
+            S1 = 20
+            S2 = 20
+            H1 = 123456
+            [Peer]
+            PublicKey = y
+            """;
+        Assert.True(_parser.IsAmneziaWg(config));
+    }
+
+    [Fact]
+    public void IsAmneziaWg_DetectsAwg3Keys()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            S3 = 30
+            S4 = 30
+            H1 = 100-200
+            I1 = <b 0x0102><r 16>
+            HeaderProtectionKey = abc=
+            ContentPaddingAddition = 16
+            [Peer]
+            PublicKey = y
+            """;
+        Assert.True(_parser.IsAmneziaWg(config));
+    }
+
+    [Fact]
+    public void IsAmneziaWg_DetectsKeysCaseInsensitively()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            jc = 4
+            h4 = 50000
+            [Peer]
+            PublicKey = y
+            """;
+        Assert.True(_parser.IsAmneziaWg(config));
+    }
+
+    [Fact]
+    public void IsAmneziaWg_ReturnsFalse_ForPlainWireGuard()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            Address = 10.8.0.5/32
+            DNS = 10.8.0.1
+            [Peer]
+            PublicKey = y
+            AllowedIPs = 0.0.0.0/0
+            Endpoint = 1.2.3.4:51820
+            """;
+        Assert.False(_parser.IsAmneziaWg(config));
+    }
+
+    [Fact]
+    public void EnsurePolicySplitBaseline_PreservesAmneziaWgKeys()
+    {
+        var config = """
+            [Interface]
+            PrivateKey = x
+            Jc = 4
+            Jmin = 50
+            Jmax = 1000
+            S1 = 20
+            S2 = 20
+            H1 = 123456
+            [Peer]
+            PublicKey = y
+            AllowedIPs = 10.0.0.0/8
+            """;
+        var updated = _parser.EnsurePolicySplitBaseline(config);
+
+        Assert.Contains("Table = off", updated);
+        Assert.Contains("AllowedIPs = 0.0.0.0/0", updated);
+        Assert.Contains("Jc = 4", updated);
+        Assert.Contains("H1 = 123456", updated);
+
+        var rewritten = _parser.WriteAllowedIps(updated, "1.1.1.1/32,2.2.2.2/32");
+        Assert.Contains("Jc = 4", rewritten);
+        Assert.Contains("S2 = 20", rewritten);
+        Assert.True(_parser.IsAmneziaWg(rewritten));
+    }
 }

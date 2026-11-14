@@ -93,6 +93,8 @@ public class ConnectProfileHandlerTests
     {
         public bool IsAvailable => false;
 
+        public bool IsSplitDnsDegraded(string profileId) => false;
+
         public Task PrepareConnectionAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 

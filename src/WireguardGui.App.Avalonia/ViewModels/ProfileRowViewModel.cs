@@ -45,6 +45,7 @@ internal sealed partial class ProfileRowViewModel : LocalizedViewModelBase
     {
         BackendKind.Native => T("Backend_Native"),
         BackendKind.Nmcli => T("Backend_Nmcli"),
+        BackendKind.AmneziaWg => T("Backend_AmneziaWg"),
         _ => Backend.ToString(),
     };
 

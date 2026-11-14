@@ -9,12 +9,22 @@ public sealed class TunnelDnsManager(
     IProcessRunner processRunner,
     IProfileStore profileStore,
     IWireGuardConfigParser configParser,
-    ILogger<TunnelDnsManager> logger)
+    ILogger<TunnelDnsManager> logger,
+    TunnelHealthProbe tunnelHealthProbe)
 {
+    private readonly ConcurrentDictionary<string, bool> _degraded = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// True, когда split DNS для профиля снят, потому что туннель не обслуживает
+    /// запросы (нет handshake). Фоновый refresh по этому признаку повторяет попытку.
+    /// </summary>
+    public bool IsSplitDnsDegraded(string profileId) =>
+        _degraded.TryGetValue(profileId, out var degraded) && degraded;
+
     public async Task EnsureTunnelDnsAsync(
         VpnProfile profile,
         string iface,
-        ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> installedHosts,
+        ConcurrentDictionary<string, ConcurrentDictionary<string, long>> installedHosts,
         CancellationToken cancellationToken)
     {
         var configPath = profileStore.GetConfigPath(profile);
@@ -25,6 +35,33 @@ public sealed class TunnelDnsManager(
             logger.LogWarning("Policy routing {Profile}: no tunnel DNS configured", profile.Name);
             return;
         }
+
+        var health = await tunnelHealthProbe.CheckAsync(profile, iface, cancellationToken).ConfigureAwait(false);
+        if (!health.AllowsSplitDns)
+        {
+            var wasDegraded = IsSplitDnsDegraded(profile.Id);
+            _degraded[profile.Id] = true;
+            logger.LogWarning(
+                "Policy routing {Profile}: split DNS withheld on {Interface} ({Health}) — split domains keep resolving via the local resolver",
+                profile.Name,
+                iface,
+                health.Describe());
+            await RemoveDnsPolicyRulesAsync(profile, dnsServers, installedHosts, cancellationToken)
+                .ConfigureAwait(false);
+            await ClearTunnelDnsAsync(iface, cancellationToken).ConfigureAwait(false);
+            if (!wasDegraded)
+                await FlushResolverCacheAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (IsSplitDnsDegraded(profile.Id))
+            logger.LogInformation(
+                "Policy routing {Profile}: tunnel is back ({Health}), restoring split DNS on {Interface}",
+                profile.Name,
+                health.Describe(),
+                iface);
+
+        _degraded[profile.Id] = false;
 
         if (profile.Backend == BackendKind.Nmcli)
             await ConfigureNmcliDnsFromConfigAsync(profile, cancellationToken).ConfigureAwait(false);
@@ -134,7 +171,7 @@ public sealed class TunnelDnsManager(
         VpnProfile profile,
         string iface,
         IReadOnlyList<string> dnsServers,
-        ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> installedHosts,
+        ConcurrentDictionary<string, ConcurrentDictionary<string, long>> installedHosts,
         CancellationToken cancellationToken)
     {
         var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
@@ -150,13 +187,47 @@ public sealed class TunnelDnsManager(
                 ["rule", "add", "pref", PolicyRoutingCommands.RulePreference.ToString(), "to", cidr, "lookup", tableText],
                 cancellationToken).ConfigureAwait(false);
             installedHosts
-                .GetOrAdd(profile.Id, _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal))
-                [cidr] = 0;
+                .GetOrAdd(profile.Id, _ => new ConcurrentDictionary<string, long>(StringComparer.Ordinal))
+                [cidr] = Environment.TickCount64;
         }
 
         await RunIpPrivilegedIgnoringErrorsAsync(
             ["route", "replace", "default", "dev", iface, "table", tableText],
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task RemoveDnsPolicyRulesAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> dnsServers,
+        ConcurrentDictionary<string, ConcurrentDictionary<string, long>> installedHosts,
+        CancellationToken cancellationToken)
+    {
+        if (!installedHosts.TryGetValue(profile.Id, out var installed))
+            return;
+
+        var tableText = PolicyRoutingNaming.RoutingTableId(profile.Id).ToString();
+        foreach (var server in dnsServers)
+        {
+            if (server.Contains(':', StringComparison.Ordinal))
+                continue;
+
+            var cidr = $"{server}/32";
+            if (!installed.TryRemove(cidr, out _))
+                continue;
+
+            await RunIpPrivilegedIgnoringErrorsAsync(
+                ["rule", "del", "pref", PolicyRoutingCommands.RulePreference.ToString(), "to", cidr, "lookup", tableText],
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task FlushResolverCacheAsync(CancellationToken cancellationToken)
+    {
+        if (!processRunner.IsCommandAvailable("resolvectl"))
+            return;
+
+        await RunPrivilegedIgnoringErrorsAsync("resolvectl", ["flush-caches"], cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private Task RunIpPrivilegedIgnoringErrorsAsync(string[] arguments, CancellationToken cancellationToken) =>

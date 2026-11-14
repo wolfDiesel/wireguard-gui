@@ -39,6 +39,12 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     private string _nmcliInstallDebian = string.Empty;
 
     [ObservableProperty]
+    private string _amneziaWgInstallFedora = string.Empty;
+
+    [ObservableProperty]
+    private string _amneziaWgInstallDebian = string.Empty;
+
+    [ObservableProperty]
     private ProfileRowViewModel? _selectedProfile;
 
     public SplitRoutingPanelViewModel SplitRouting { get; }
@@ -62,6 +68,8 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
     public string SetupNativeDebian => T("Profiles_Setup_Native_Debian");
     public string SetupNmcliFedora => T("Profiles_Setup_Nmcli_Fedora");
     public string SetupNmcliDebian => T("Profiles_Setup_Nmcli_Debian");
+    public string SetupAmneziaWgFedora => T("Profiles_Setup_AmneziaWg_Fedora");
+    public string SetupAmneziaWgDebian => T("Profiles_Setup_AmneziaWg_Debian");
 
     public ProfilesViewModel(
         HandlerInvoker invoker,
@@ -152,11 +160,14 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
         var capabilities = await _invoker.InvokeAsync(sp =>
             sp.GetRequiredService<GetSystemCapabilitiesHandler>().HandleAsync());
 
+        var configKind = await _invoker.InvokeAsync(sp =>
+            sp.GetRequiredService<DetectConfigKindHandler>().HandleAsync(path));
+
         var window = owner as Window ?? TopLevel.GetTopLevel(owner) as Window;
         if (window is null)
             return;
 
-        var dialog = new Views.ImportProfileDialog(capabilities, Localization);
+        var dialog = new Views.ImportProfileDialog(capabilities, configKind, Localization);
         var backend = await dialog.ShowDialog<BackendKind?>(window);
         if (backend is null)
             return;
@@ -328,11 +339,14 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
 
         var native = caps.Backends.FirstOrDefault(b => b.Backend == BackendKind.Native);
         var nmcli = caps.Backends.FirstOrDefault(b => b.Backend == BackendKind.Nmcli);
+        var amneziaWg = caps.Backends.FirstOrDefault(b => b.Backend == BackendKind.AmneziaWg);
 
         NativeInstallFedora = native?.FedoraInstallHint ?? string.Empty;
         NativeInstallDebian = native?.DebianInstallHint ?? string.Empty;
         NmcliInstallFedora = nmcli?.FedoraInstallHint ?? string.Empty;
         NmcliInstallDebian = nmcli?.DebianInstallHint ?? string.Empty;
+        AmneziaWgInstallFedora = amneziaWg?.FedoraInstallHint ?? string.Empty;
+        AmneziaWgInstallDebian = amneziaWg?.DebianInstallHint ?? string.Empty;
     }
 
     private async Task PollProfileStatesAsync()
@@ -410,7 +424,9 @@ internal sealed partial class ProfilesViewModel : LocalizedViewModelBase
             nameof(SetupNativeFedora),
             nameof(SetupNativeDebian),
             nameof(SetupNmcliFedora),
-            nameof(SetupNmcliDebian));
+            nameof(SetupNmcliDebian),
+            nameof(SetupAmneziaWgFedora),
+            nameof(SetupAmneziaWgDebian));
 
         foreach (var profile in Profiles)
             profile.RefreshLocalization();

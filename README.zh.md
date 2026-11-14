@@ -54,6 +54,8 @@ sudo dnf install gtk3 libayatana-appindicator3 wireguard-tools NetworkManager-wi
 dotnet test
 ```
 
+三个测试项目（`tests/*/*.Tests.csproj`）在两个 CI 中都会运行——GitLab CI 的 `test` job 与 GitHub Actions 的 `test`（`.github/workflows/ci.yml`）；每个项目都会生成 JUnit 报告（`artifacts/test-results/*.xml`）并作为构建产物上传。AppImage 仅在 GitHub Actions 中构建。
+
 ## 数据目录
 
 应用数据位于 `~/.local/share/wireguard-gui/`：

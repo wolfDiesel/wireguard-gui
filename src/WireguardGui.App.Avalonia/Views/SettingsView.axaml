@@ -10,77 +10,115 @@
     <StackPanel Spacing="20">
     <TextBlock Classes="page-title" Text="{Binding Title}" />
 
-    <StackPanel Spacing="8">
-      <TextBlock Classes="section-title" Text="{Binding ThemeLabel}" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceDark}"
-                Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=dark}"
-                Command="{Binding SelectAppearanceCommand}" CommandParameter="dark" />
-        <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceLight}"
-                Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=light}"
-                Command="{Binding SelectAppearanceCommand}" CommandParameter="light" />
-        <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceSystem}"
-                Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=system}"
-                Command="{Binding SelectAppearanceCommand}" CommandParameter="system" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <controls:AppButton Variant="OptionChip" Content="{Binding TabGeneralLabel}"
+              Classes.selected="{Binding IsGeneralTab}"
+              Command="{Binding SelectTabCommand}" CommandParameter="general" />
+      <controls:AppButton Variant="OptionChip" Content="{Binding TabAmnesiaLabel}"
+              Classes.selected="{Binding AmnesiaTabSelected}"
+              Command="{Binding SelectTabCommand}" CommandParameter="amnesia" />
+    </StackPanel>
+
+    <StackPanel Spacing="20" IsVisible="{Binding IsGeneralTab}">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section-title" Text="{Binding ThemeLabel}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceDark}"
+                  Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=dark}"
+                  Command="{Binding SelectAppearanceCommand}" CommandParameter="dark" />
+          <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceLight}"
+                  Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=light}"
+                  Command="{Binding SelectAppearanceCommand}" CommandParameter="light" />
+          <controls:AppButton Variant="OptionChip" Content="{Binding AppearanceSystem}"
+                  Classes.selected="{Binding SelectedAppearance, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=system}"
+                  Command="{Binding SelectAppearanceCommand}" CommandParameter="system" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section-title" Text="{Binding AccentLabel}" />
+        <ItemsControl ItemsSource="{Binding ColorSchemes}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PaletteChipViewModel">
+              <controls:AppButton Variant="PaletteChip" Margin="0,2"
+                      Classes.selected="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectedColorScheme, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding Id}}"
+                      Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectColorSchemeCommand}"
+                      CommandParameter="{Binding Id}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Border Width="16" Height="16" CornerRadius="4"
+                          Background="{Binding PrimaryHex, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
+                  <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                </StackPanel>
+              </controls:AppButton>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section-title" Text="{Binding LanguageLabel}" />
+        <ItemsControl ItemsSource="{Binding Languages}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:LanguageOptionViewModel">
+              <controls:AppButton Variant="OptionChip" Margin="0,0,8,8" Content="{Binding Label}"
+                      Classes.selected="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectedLanguage, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding Code}}"
+                      Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectLanguageCommand}"
+                      CommandParameter="{Binding Code}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section-title" Text="{Binding TrayLabel}" />
+        <CheckBox Content="{Binding TrayEnableLabel}" IsChecked="{Binding TrayEnabled}" />
+        <CheckBox Content="{Binding TrayMinimizeLabel}" IsChecked="{Binding MinimizeToTray}" />
+        <CheckBox Content="{Binding TrayCloseLabel}" IsChecked="{Binding CloseToTray}" />
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section-title" Text="{Binding SplitRoutingLabel}" />
+        <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitRoutingRefreshLabel}" />
+        <NumericUpDown Minimum="1" Maximum="120" Increment="1" FormatString="0"
+                       Width="120" HorizontalAlignment="Left"
+                       Value="{Binding SplitRoutingRefreshMinutes}" />
+      </StackPanel>
+
+      <controls:AppButton Variant="Primary" Content="{Binding SaveLabel}" HorizontalAlignment="Left"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+
+    <StackPanel Spacing="12" IsVisible="{Binding AmnesiaTabSelected}">
+      <TextBlock Classes="section-title" Text="{Binding AmneziaWgTitle}" />
+      <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding AmneziaWgHint}" />
+
+      <TextBlock Text="{Binding AmneziaWgStatusText}" FontWeight="SemiBold" />
+      <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding AmneziaWgMissingText}"
+                 IsVisible="{Binding ShowAmneziaWgMissing}" />
+
+      <StackPanel Spacing="4" IsVisible="{Binding IsAmneziaWgAvailable}">
+        <TextBlock Classes="field-label" Text="{Binding AmneziaWgVersionLabel}" />
+        <TextBlock Text="{Binding AmneziaWgToolsText}" />
+        <TextBlock Classes="field-label" Text="{Binding AmneziaWgTransportLabel}" />
+        <TextBlock Text="{Binding AmneziaWgTransportText}" />
+      </StackPanel>
+
+      <ProgressBar IsIndeterminate="True" Height="4" IsVisible="{Binding AmneziaWgBusy}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ShowInstallControls}">
+        <controls:AppButton Variant="Primary" Content="{Binding AmneziaWgCheckLabel}"
+                Command="{Binding CheckAmneziaWgCommand}" />
+        <controls:AppButton Variant="Primary" Content="{Binding AmneziaWgInstallLabel}"
+                Click="OnInstallAmneziaWgClick" />
+        <controls:AppButton Variant="Ghost" Content="{Binding AmneziaWgManualLabel}"
+                Click="OnManualInstallClick" />
       </StackPanel>
     </StackPanel>
-
-    <StackPanel Spacing="8">
-      <TextBlock Classes="section-title" Text="{Binding AccentLabel}" />
-      <ItemsControl ItemsSource="{Binding ColorSchemes}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:PaletteChipViewModel">
-            <controls:AppButton Variant="PaletteChip" Margin="0,2"
-                    Classes.selected="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectedColorScheme, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding Id}}"
-                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectColorSchemeCommand}"
-                    CommandParameter="{Binding Id}">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Border Width="16" Height="16" CornerRadius="4"
-                        Background="{Binding PrimaryHex, Converter={x:Static conv:HexToBrushConverter.Instance}}" />
-                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-              </StackPanel>
-            </controls:AppButton>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
-
-    <StackPanel Spacing="8">
-      <TextBlock Classes="section-title" Text="{Binding LanguageLabel}" />
-      <ItemsControl ItemsSource="{Binding Languages}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel Orientation="Horizontal" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-            <controls:AppButton Variant="OptionChip" Margin="0,0,8,8" Content="{Binding Label}"
-                    Classes.selected="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectedLanguage, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding Code}}"
-                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectLanguageCommand}"
-                    CommandParameter="{Binding Code}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
-
-    <StackPanel Spacing="8">
-      <TextBlock Classes="section-title" Text="{Binding TrayLabel}" />
-      <CheckBox Content="{Binding TrayEnableLabel}" IsChecked="{Binding TrayEnabled}" />
-      <CheckBox Content="{Binding TrayMinimizeLabel}" IsChecked="{Binding MinimizeToTray}" />
-      <CheckBox Content="{Binding TrayCloseLabel}" IsChecked="{Binding CloseToTray}" />
-    </StackPanel>
-
-    <StackPanel Spacing="8">
-      <TextBlock Classes="section-title" Text="{Binding SplitRoutingLabel}" />
-      <TextBlock Classes="text-muted" TextWrapping="Wrap" Text="{Binding SplitRoutingRefreshLabel}" />
-      <NumericUpDown Minimum="1" Maximum="120" Increment="1" FormatString="0"
-                     Width="120" HorizontalAlignment="Left"
-                     Value="{Binding SplitRoutingRefreshMinutes}" />
-    </StackPanel>
-
-    <controls:AppButton Variant="Primary" Content="{Binding SaveLabel}" HorizontalAlignment="Left"
-            Command="{Binding SaveCommand}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

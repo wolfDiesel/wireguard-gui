@@ -4,4 +4,5 @@ public enum BackendKind
 {
     Native,
     Nmcli,
+    AmneziaWg,
 }

@@ -17,6 +17,10 @@ internal sealed class FakePolicyRoutingSetup : IPolicyRoutingSetup
 {
     public bool IsAvailable { get; init; }
 
+    public bool SplitDnsDegraded { get; set; }
+
+    public bool IsSplitDnsDegraded(string profileId) => SplitDnsDegraded;
+
     public List<IReadOnlyList<string>> AppliedRoutes { get; } = [];
     public List<IReadOnlyList<string>> SyncedRoutes { get; } = [];
     public List<string> TeardownProfileIds { get; } = [];
@@ -60,14 +64,22 @@ internal sealed class TrackingProcessRunner : IProcessRunner
 {
     public List<string> PrivilegedShellScripts { get; } = [];
     public List<(string FileName, string[] Arguments)> PrivilegedCommands { get; } = [];
+    public List<(string FileName, string[] Arguments)> Commands { get; } = [];
 
     public bool IpAvailable { get; init; } = true;
     public bool NftAvailable { get; init; } = true;
     public bool InterfaceIpv6Capable { get; init; } = true;
     public bool FailRouteFlush { get; init; }
     public string WgInterfaces { get; init; } = "wg0";
+    public string AwgInterfaces { get; init; } = "awg0";
     public string DefaultRoute { get; init; } = "default via 192.168.1.1 dev eth0";
     public string RuleListOutput { get; init; } = string.Empty;
+    public string Ipv6RuleListOutput { get; init; } = string.Empty;
+    public string WgLatestHandshakes { get; set; } = string.Empty;
+    public int WgLatestHandshakesExitCode { get; set; }
+    public string AwgLatestHandshakes { get; set; } = string.Empty;
+    public int AwgLatestHandshakesExitCode { get; set; }
+    public bool InterfaceLinkPresent { get; init; } = true;
 
     public bool IsCommandAvailable(string command) => command switch
     {
@@ -75,6 +87,7 @@ internal sealed class TrackingProcessRunner : IProcessRunner
         "nft" => NftAvailable,
         "dig" => true,
         "wg" => true,
+        "awg" => true,
         "nmcli" => true,
         "resolvectl" => true,
         _ => false,
@@ -82,8 +95,38 @@ internal sealed class TrackingProcessRunner : IProcessRunner
 
     public Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
+        Commands.Add((fileName, arguments.ToArray()));
+
         if (fileName == "wg" && arguments.Count >= 2 && arguments[0] == "show" && arguments[1] == "interfaces")
             return Task.FromResult(new ProcessResult(0, WgInterfaces, string.Empty));
+
+        if (fileName == "awg" && arguments.Count >= 2 && arguments[0] == "show" && arguments[1] == "interfaces")
+            return Task.FromResult(new ProcessResult(0, AwgInterfaces, string.Empty));
+
+        if (fileName == "wg" && arguments.Count >= 3 && arguments[0] == "show" && arguments[2] == "latest-handshakes")
+            return Task.FromResult(new ProcessResult(WgLatestHandshakesExitCode, WgLatestHandshakes, string.Empty));
+
+        if (fileName == "awg" && arguments.Count >= 3 && arguments[0] == "show" && arguments[2] == "latest-handshakes")
+            return Task.FromResult(new ProcessResult(AwgLatestHandshakesExitCode, AwgLatestHandshakes, string.Empty));
+
+        if (fileName == "ip" && arguments.Count >= 4 &&
+            string.Equals(arguments[0], "link", StringComparison.Ordinal) &&
+            string.Equals(arguments[1], "show", StringComparison.Ordinal) &&
+            string.Equals(arguments[2], "dev", StringComparison.Ordinal))
+        {
+            return InterfaceLinkPresent
+                ? Task.FromResult(new ProcessResult(0, $"4: {arguments[3]}: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420\n", string.Empty))
+                : Task.FromResult(new ProcessResult(1, string.Empty, "Device does not exist.\n"));
+        }
+
+        if (fileName == "ip" && arguments.Count >= 2 &&
+            string.Equals(arguments[0], "-6", StringComparison.Ordinal) &&
+            string.Equals(arguments[1], "rule", StringComparison.Ordinal) &&
+            arguments.Count >= 3 &&
+            string.Equals(arguments[2], "list", StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ProcessResult(0, Ipv6RuleListOutput, string.Empty));
+        }
 
         if (fileName == "ip" && arguments.Count >= 1 &&
             string.Equals(arguments[0], "rule", StringComparison.Ordinal) &&

@@ -45,12 +45,61 @@ public class EndpointRouteGuardTests
                  c.Arguments.Contains("1.2.3.4/32"));
     }
 
-    private static TestContext CreateContext(TrackingProcessRunner runner)
+    [Fact]
+    public async Task EnsureEndpointRouteAsync_AmneziaWg_UsesAwgInterfaces()
+    {
+        var runner = new TrackingProcessRunner
+        {
+            DefaultRoute = "default via 192.168.1.1 dev enp3s0",
+            AwgInterfaces = "awg0",
+        };
+        var context = CreateContext(runner, BackendKind.AmneziaWg, "awg0");
+
+        await context.Guard.EnsureEndpointRouteAsync(context.Profile, CancellationToken.None);
+
+        Assert.Contains(
+            runner.Commands,
+            c => c.FileName == "awg" && c.Arguments.SequenceEqual(["show", "interfaces"]));
+        Assert.DoesNotContain(
+            runner.Commands,
+            c => c.FileName == "wg" && c.Arguments.SequenceEqual(["show", "interfaces"]));
+        Assert.Contains(
+            runner.PrivilegedCommands,
+            c => c.FileName == "ip" && c.Arguments.SequenceEqual(
+                ["route", "replace", "1.2.3.4/32", "via", "192.168.1.1", "dev", "enp3s0"]));
+    }
+
+    [Fact]
+    public async Task EnsureEndpointRouteAsync_SkipsAmneziaWgDefaultRoute()
+    {
+        var runner = new TrackingProcessRunner
+        {
+            DefaultRoute = "default via 192.168.1.1 dev awg0",
+            AwgInterfaces = "awg0",
+            WgInterfaces = "wg0",
+        };
+        var context = CreateContext(runner, BackendKind.AmneziaWg, "awg0");
+
+        await context.Guard.EnsureEndpointRouteAsync(context.Profile, CancellationToken.None);
+
+        Assert.DoesNotContain(
+            runner.PrivilegedCommands,
+            c => c.FileName == "ip" &&
+                 c.Arguments.Length >= 2 &&
+                 c.Arguments[0] == "route" &&
+                 c.Arguments[1] == "replace" &&
+                 c.Arguments.Contains("1.2.3.4/32"));
+    }
+
+    private static TestContext CreateContext(
+        TrackingProcessRunner runner,
+        BackendKind backend = BackendKind.Nmcli,
+        string connectionName = "wg0")
     {
         var root = Path.Combine(Path.GetTempPath(), "wg-endpoint-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var store = TestStoreFactory.Create(root);
-        var profile = VpnProfile.Create("p1", BackendKind.Nmcli, "wg0");
+        var profile = VpnProfile.Create("p1", backend, connectionName);
         Directory.CreateDirectory(store.GetProfileDirectory(profile.Id));
         File.WriteAllText(
             store.GetConfigPath(profile),

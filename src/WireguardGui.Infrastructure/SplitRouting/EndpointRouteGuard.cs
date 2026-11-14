@@ -29,7 +29,9 @@ public sealed class EndpointRouteGuard(
         if (!gatewayResult.IsSuccess)
             return;
 
-        var wgInterfaces = await GetWireGuardInterfacesAsync(cancellationToken).ConfigureAwait(false);
+        var wgInterfaces = await GetWireGuardInterfacesAsync(
+            TunnelToolset.For(profile.Backend),
+            cancellationToken).ConfigureAwait(false);
         var currentIface = await ResolveWireGuardInterfaceAsync(profile, cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(currentIface))
             wgInterfaces.Add(currentIface);
@@ -83,7 +85,8 @@ public sealed class EndpointRouteGuard(
                 return nmIface;
         }
 
-        var result = await processRunner.RunAsync("wg", ["show", "interfaces"], cancellationToken)
+        var toolset = TunnelToolset.For(profile.Backend);
+        var result = await processRunner.RunAsync(toolset.ShowCommand, ["show", "interfaces"], cancellationToken)
             .ConfigureAwait(false);
         if (!result.IsSuccess)
             return profile.ConnectionName;
@@ -116,9 +119,11 @@ public sealed class EndpointRouteGuard(
             .FirstOrDefault();
     }
 
-    private async Task<HashSet<string>> GetWireGuardInterfacesAsync(CancellationToken cancellationToken)
+    private async Task<HashSet<string>> GetWireGuardInterfacesAsync(
+        TunnelToolset toolset,
+        CancellationToken cancellationToken)
     {
-        var result = await processRunner.RunAsync("wg", ["show", "interfaces"], cancellationToken)
+        var result = await processRunner.RunAsync(toolset.ShowCommand, ["show", "interfaces"], cancellationToken)
             .ConfigureAwait(false);
         if (!result.IsSuccess)
             return [];

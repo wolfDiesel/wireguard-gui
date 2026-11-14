@@ -76,5 +76,25 @@ internal static class PolicyRoutingCommands
         return builder.ToString();
     }
 
+    public static string BuildDeleteHostRulesScript(IReadOnlyList<string> cidrs, string tableText)
+    {
+        var builder = new StringBuilder();
+        foreach (var cidr in cidrs)
+        {
+            var family = cidr.Contains(':', StringComparison.Ordinal) ? "-6 " : string.Empty;
+            builder.Append("ip ")
+                .Append(family)
+                .Append("rule del pref ")
+                .Append(RulePreference)
+                .Append(" to ")
+                .Append(ShellEscape(cidr))
+                .Append(" lookup ")
+                .Append(tableText)
+                .Append(" 2>/dev/null || true\n");
+        }
+
+        return builder.ToString();
+    }
+
     public static string FormatFwMark(uint mark) => $"0x{mark:x}";
 }

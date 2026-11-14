@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WireguardGui.App.Avalonia.Controls"
+        x:Class="WireguardGui.App.Avalonia.Views.BackendInstallDialog"
+        Width="560"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource SurfaceCanvasBrush}"
+        Padding="20">
+  <StackPanel Spacing="14">
+    <TextBlock x:Name="DialogTitle" Classes="page-title" />
+    <TextBlock x:Name="StepText" Classes="text-muted" TextWrapping="Wrap" />
+    <ProgressBar x:Name="Progress" IsIndeterminate="True" Height="4" />
+    <TextBox x:Name="OutputText" IsReadOnly="True" AcceptsReturn="True" MinHeight="120"
+             MaxHeight="220" FontFamily="monospace" TextWrapping="Wrap" />
+    <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <controls:AppButton x:Name="ManualButton" Variant="Ghost" IsVisible="False" Click="OnManualClick" />
+      <controls:AppButton x:Name="CloseButton" Variant="Primary" IsEnabled="False" Click="OnCloseClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

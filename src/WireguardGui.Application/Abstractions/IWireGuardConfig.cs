@@ -27,6 +27,7 @@ public interface IWireGuardConfigParser
     string ApplyTunnelDns(string configContent, string? tunnelDnsCsv);
     string? InferDnsFromAddress(string configContent);
     string NormalizeAllowedIps(string allowedIpsCsv);
+    bool IsAmneziaWg(string configContent);
 }
 
 public interface IProfileConfigDnsSync

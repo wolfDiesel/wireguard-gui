@@ -10,11 +10,14 @@ public static class DependencyInjection
     public static IServiceCollection AddWireguardGuiApplication(this IServiceCollection services)
     {
         services.AddSingleton<ImportProfileHandler>();
+        services.AddSingleton<DetectConfigKindHandler>();
         services.AddSingleton<ConnectProfileHandler>();
         services.AddSingleton<DisconnectProfileHandler>();
         services.AddSingleton<DeleteProfileHandler>();
         services.AddSingleton<GetProfilesHandler>();
         services.AddSingleton<GetSystemCapabilitiesHandler>();
+        services.AddSingleton<GetAmneziaWgStatusHandler>();
+        services.AddSingleton<InstallAmneziaWgHandler>();
         services.AddSingleton<GetSplitRoutingToolingHandler>();
         services.AddSingleton<ApplySplitRoutingHandler>();
         services.AddSingleton<SaveProfileSplitRoutingHandler>();

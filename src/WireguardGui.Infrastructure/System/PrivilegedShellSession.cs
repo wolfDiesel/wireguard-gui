@@ -162,10 +162,7 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
             {
                 var codeText = line["__WG_GUI_EXIT__".Length..];
                 var exitCode = int.TryParse(codeText, out var code) ? code : 1;
-                var result = new ProcessResult(exitCode, stdout.ToString(), stderr.ToString());
-                if (IsPrivilegeDenied(result))
-                    throw new PrivilegeRequiredException();
-                return result;
+                return new ProcessResult(exitCode, stdout.ToString(), stderr.ToString());
             }
 
             switch (line)
@@ -196,12 +193,17 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         if (_process.HasExited)
             await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
+        var sessionExitCode = _process.HasExited ? _process.ExitCode : (int?)null;
         var processError = _process.HasExited
             ? await _process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false)
             : null;
+
+        if (sessionExitCode is 126 or 127)
+            throw new PrivilegeRequiredException("Authorization was dismissed or denied");
+
         logger.LogWarning(
             "Privileged session ended without a response (exit code: {ExitCode}); stderr: {Stderr}",
-            _process.HasExited ? _process.ExitCode : (int?)null,
+            sessionExitCode,
             processError?.Trim());
         throw new WireGuardOperationException(
             "Privileged session ended without a response",
@@ -259,18 +261,6 @@ internal sealed class PrivilegedShellSession(ILogger logger) : IAsyncDisposable
         }
 
         return false;
-    }
-
-    private static bool IsPrivilegeDenied(ProcessResult result)
-    {
-        if (result.ExitCode == 126 || result.ExitCode == 127)
-            return true;
-
-        var combined = $"{result.StandardError} {result.StandardOutput}".ToLowerInvariant();
-        return combined.Contains("not authorized")
-               || combined.Contains("dismissed")
-               || combined.Contains("cancelled")
-               || combined.Contains("отмен");
     }
 
     private enum Section

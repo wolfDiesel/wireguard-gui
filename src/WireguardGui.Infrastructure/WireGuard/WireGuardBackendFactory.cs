@@ -5,13 +5,15 @@ namespace WireguardGui.Infrastructure.WireGuard;
 
 public sealed class WireGuardBackendFactory(
     NativeWireGuardBackend native,
-    NmcliWireGuardBackend nmcli) : IWireGuardBackendFactory
+    NmcliWireGuardBackend nmcli,
+    AmneziaWgBackend amneziaWg) : IWireGuardBackendFactory
 {
     public IWireGuardBackend GetBackend(BackendKind kind) =>
         kind switch
         {
             BackendKind.Native => native,
             BackendKind.Nmcli => nmcli,
+            BackendKind.AmneziaWg => amneziaWg,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 }

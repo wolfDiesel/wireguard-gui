@@ -2,6 +2,71 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.0] - 2026-11-14
+
+### Added
+
+- **AmneziaWG tunnels (third backend).** `.conf` files exported by the Amnezia client (WireGuard with
+  traffic obfuscation) can now be imported and managed like any other profile: the obfuscation keys
+  (`Jc`, `Jmin`, `Jmax`, `S1`–`S4`, `H1`–`H4`, `I1`–`I5`, …) are kept verbatim, while split routing keeps
+  rewriting only `AllowedIPs`/`Table`/`DNS`. The import dialog got a third backend (`awg-quick`), the
+  config kind is detected before the dialog so an AmneziaWG file preselects it, and importing such a
+  file into native/nmcli is rejected with an explanation instead of producing a broken profile. When
+  the tools are missing, the dialog lists what to install (`amneziawg-tools` plus the `amneziawg`
+  kernel module or `amneziawg-go`) and blocks the import. Tunnel state reads in split routing
+  (endpoint route guard, handshake probe) now pick `awg` or `wg` by backend, because `wg show` cannot
+  see AmneziaWG interfaces.
+
+- **AmneziaWG backend can be installed from Settings.** The new **Settings → Amnesia** tab shows whether
+  the backend is usable (tools version and transport: kernel module or `amneziawg-go`) and, when it is
+  missing, offers **Check**, **Install** and **Manual install**. Install detects the distribution from
+  `/etc/os-release` and runs fixed plans: Debian/Ubuntu (PPA) and RHEL/CentOS (COPR) install packages,
+  ALT Linux installs from its repository, and Fedora builds `amneziawg-tools` plus the userspace
+  `amneziawg-go` from source because the COPR project has no Fedora chroots. Everything goes through
+  the existing pkexec session, with a modal that shows every step and its output; manual mode gives
+  copy-paste commands for those families plus building the DKMS module from source. Unknown
+  distributions get manual instructions only, and every plan ends with a tool check
+  (`command -v awg awg-quick`), so a partial install is reported as a failure instead of a silent
+  "installed".
+
+## [1.4.16] - 2026-10-25
+
+### Fixed
+
+- **Split DNS stayed pointed at a dead tunnel, so whole name groups stopped resolving.** After a
+  resume, a provider outage or a VPN-server failure the WireGuard interface stays "activated" in
+  NetworkManager while no handshake completes. `resolvectl dns <iface> 8.8.8.8` and the split-routing
+  domains stayed in place, so every name from `DnsRouteSuffixes.ForTunnelDns` (youtube, twitch, t.me,
+  custom domains…) timed out for seconds and resolved nowhere, even though `/etc/resolv.conf` pointed
+  at the systemd-resolved stub. `TunnelDnsManager` now probes the tunnel first (`TunnelHealthProbe`:
+  interface presence plus `wg show <iface> latest-handshakes`, a handshake older than five minutes
+  counts as dead) and, when the tunnel cannot answer, reverts the link DNS (`resolvectl revert`),
+  removes the `ip rule` for the tunnel DNS server, flushes the resolver cache and logs a warning —
+  split domains keep resolving through the local resolver instead of hanging. The withheld state is
+  exposed via `IPolicyRoutingSetup.IsSplitDnsDegraded`, so the background refresh keeps retrying and
+  restores split DNS as soon as a handshake is back, even for profiles without dynamic sources.
+
+- **Destination `ip rule`s accumulated until they hijacked unrelated addresses.** Rules installed by
+  the DNS-route monitor were never forgotten: the tracked host set only grew, every refresh added the
+  addresses of freshly resolved hosts and nothing removed the stale ones, so a long-lived profile
+  ended up with ~1000 rules — including the tuna entry point `45.129.128.77`, which sent
+  `danotez.a.2na.am` / `multitwatch.a.2na.am` traffic into the dead tunnel. Rules are now reconciled
+  against the current state on every sync/refresh (`IpRuleManager.PruneDestinationRulesAsync`), and
+  the monitored-host set is capped by `maxRoutes` with the oldest dynamic entries evicted; the static
+  routes of the profile are never evicted.
+
+- **Split domains were resolved outside the tunnel.** Route collection used plain `dig` through the
+  system resolver, i.e. the local (possibly filtered) DNS chain. On networks where the provider or
+  the registry answers `NXDOMAIN` for a whole name (e.g. apex `rutracker.org`, `kinozal.me` while
+  `www.*` still resolve), custom domains produced zero `/32` routes and the apply reported success
+  without a warning; only domains already covered by another rule (Cloudflare ranges, the DNS-route
+  monitor) still reached the tunnel. `DomainDnsResolver` now queries the tunnel DNS servers from
+  `SplitRoutingSettings.TunnelDns` (`dig +short +time=2 +tries=1 … @<server>`, servers tried in
+  order) for the domains listed in the profile, and falls back to the system resolver only when the
+  tunnel DNS returns no A/AAAA answer. A custom domain that resolves nowhere is logged as a warning
+  instead of silently yielding no routes. The set of tunnelled names and the rest of the pipeline
+  are unchanged: only the names configured in the profile are resolved through the tunnel.
+
 ## [1.4.15] - 2026-10-23
 
 ### Fixed

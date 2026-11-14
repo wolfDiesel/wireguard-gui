@@ -106,6 +106,10 @@ public class SplitRoutingRefreshServiceTests
     private sealed class FakePolicyRouting : IPolicyRoutingSetup
     {
         public bool IsAvailable => false;
+
+        public bool SplitDnsDegraded { get; init; }
+
+        public bool IsSplitDnsDegraded(string profileId) => SplitDnsDegraded;
         public Task PrepareConnectionAsync(VpnProfile profile, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
         public Task<PolicyRoutingApplyResult> ApplyAsync(
@@ -129,7 +133,10 @@ public class SplitRoutingRefreshServiceTests
     }
 
     private static (SplitRoutingRefreshService Service, FakeTimer Timer, FakeDnsMonitor Dns, FakeNotifier Notifier, FakeUpdater Updater)
-        CreateService(VpnProfile profile, ConnectionState state = ConnectionState.Connected)
+        CreateService(
+            VpnProfile profile,
+            ConnectionState state = ConnectionState.Connected,
+            bool splitDnsDegraded = false)
     {
         var timer = new FakeTimer();
         var resume = new FakeResumeWatcher();
@@ -144,7 +151,7 @@ public class SplitRoutingRefreshServiceTests
         services.AddSingleton<ISettingsStore>(new FakeSettingsStore(AppSettings.CreateDefault()));
         services.AddSingleton<IWireGuardBackendFactory>(new FakeBackendFactory(backend));
         services.AddSingleton<ISplitRoutingConfigUpdater>(updater);
-        services.AddSingleton<IPolicyRoutingSetup>(new FakePolicyRouting());
+        services.AddSingleton<IPolicyRoutingSetup>(new FakePolicyRouting { SplitDnsDegraded = splitDnsDegraded });
         services.AddSingleton<ApplySplitRoutingHandler>();
 
         var provider = services.BuildServiceProvider();
@@ -191,6 +198,40 @@ public class SplitRoutingRefreshServiceTests
 
         Assert.Equal(1, updater.CallCount);
         Assert.Equal(1, notifier.NotifyCount);
+    }
+
+    [Fact]
+    public async Task Tick_StaticOnlyProfile_SkipsRefreshWhileSplitDnsIsApplied()
+    {
+        var profile = VpnProfile.Create("p", BackendKind.Native, "p") with
+        {
+            SplitRouting = SplitRoutingSettings.CreateDefault() with { Enabled = true, Youtube = true },
+        };
+        var (service, timer, _, _, updater) = CreateService(profile);
+
+        service.NotifyProfileConnected(profile.Id);
+        await Task.Delay(100);
+        timer.RaiseTick();
+        await Task.Delay(100);
+
+        Assert.Equal(0, updater.CallCount);
+    }
+
+    [Fact]
+    public async Task Tick_StaticOnlyProfile_RetriesWhileSplitDnsIsDegraded()
+    {
+        var profile = VpnProfile.Create("p", BackendKind.Native, "p") with
+        {
+            SplitRouting = SplitRoutingSettings.CreateDefault() with { Enabled = true, Youtube = true },
+        };
+        var (service, timer, _, _, updater) = CreateService(profile, splitDnsDegraded: true);
+
+        service.NotifyProfileConnected(profile.Id);
+        await Task.Delay(100);
+        timer.RaiseTick();
+        await Task.Delay(100);
+
+        Assert.Equal(1, updater.CallCount);
     }
 
     [Fact]

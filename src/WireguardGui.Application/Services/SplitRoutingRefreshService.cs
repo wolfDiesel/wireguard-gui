@@ -233,7 +233,7 @@ public sealed class SplitRoutingRefreshService : ISplitRoutingRefreshScheduler, 
             if (profile is null)
                 return;
 
-            if (!force && !profile.SplitRouting.NeedsDnsRouteRefresh)
+            if (!force && !profile.SplitRouting.NeedsDnsRouteRefresh && !IsSplitDnsDegraded(profileId))
                 return;
 
             if (!profile.SplitRouting.Enabled)
@@ -279,6 +279,19 @@ public sealed class SplitRoutingRefreshService : ISplitRoutingRefreshScheduler, 
         finally
         {
             _runLock.Release();
+        }
+    }
+
+    private bool IsSplitDnsDegraded(string profileId)
+    {
+        try
+        {
+            return _services.GetRequiredService<IPolicyRoutingSetup>().IsSplitDnsDegraded(profileId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Split DNS degradation state is unavailable");
+            return false;
         }
     }
 

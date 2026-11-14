@@ -23,6 +23,8 @@ internal sealed class TwitchSplitRouteSource(
         progress?.Report(new SplitRoutingProgress("Progress_Routes_Twitch"));
         dnsResolver.EnsureDigAvailable();
 
+        var upstream = TunnelDnsServers.ParseList(settings.TunnelDns);
+
         var domains = new HashSet<string>(
             TwitchDomainNormalizer.Normalize(SplitRoutingConstants.TwitchDomains),
             StringComparer.OrdinalIgnoreCase);
@@ -54,7 +56,7 @@ internal sealed class TwitchSplitRouteSource(
             progress?.Report(new SplitRoutingProgress("Progress_Resolve_Domain", domain));
             logger.LogInformation("Twitch: resolving {Domain}…", domain);
 
-            var ips = await dnsResolver.ResolveIpv4Async(domain, cancellationToken).ConfigureAwait(false);
+            var ips = await dnsResolver.ResolveIpv4Async(domain, upstream, cancellationToken).ConfigureAwait(false);
             if (ips.Count == 0)
             {
                 emptyHosts++;
@@ -68,7 +70,7 @@ internal sealed class TwitchSplitRouteSource(
                 logger.LogInformation("Twitch {Domain}: {Count} addresses", domain, ips.Count);
             }
 
-            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, cancellationToken).ConfigureAwait(false);
+            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, upstream, cancellationToken).ConfigureAwait(false);
             foreach (var ip in ipv6)
                 routes.Add($"{ip}/128");
         }

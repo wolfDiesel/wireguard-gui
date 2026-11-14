@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:WireguardGui.App.Avalonia.Controls"
+        x:Class="WireguardGui.App.Avalonia.Views.ManualInstallDialog"
+        Width="640"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource SurfaceCanvasBrush}"
+        Padding="20">
+  <StackPanel Spacing="14">
+    <TextBlock x:Name="DialogTitle" Classes="page-title" />
+    <TextBlock x:Name="IntroText" Classes="text-muted" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <controls:AppButton x:Name="DebianChip" Variant="OptionChip" Tag="0" Click="OnSelectClick" />
+      <controls:AppButton x:Name="FedoraChip" Variant="OptionChip" Tag="1" Click="OnSelectClick" />
+      <controls:AppButton x:Name="RhelChip" Variant="OptionChip" Tag="2" Click="OnSelectClick" />
+      <controls:AppButton x:Name="AltChip" Variant="OptionChip" Tag="3" Click="OnSelectClick" />
+      <controls:AppButton x:Name="SourceChip" Variant="OptionChip" Tag="4" Click="OnSelectClick" />
+    </StackPanel>
+    <TextBox x:Name="CommandText" IsReadOnly="True" AcceptsReturn="True" MinHeight="150"
+             FontFamily="monospace" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <TextBlock x:Name="CopiedText" Classes="accent-text" VerticalAlignment="Center" IsVisible="False" />
+      <controls:AppButton x:Name="CopyButton" Variant="Primary" Click="OnCopyClick" />
+      <controls:AppButton x:Name="CloseButton" Variant="Ghost" Click="OnCloseClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

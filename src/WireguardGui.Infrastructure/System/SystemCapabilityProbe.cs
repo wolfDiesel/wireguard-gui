@@ -3,7 +3,7 @@ using WireguardGui.Domain;
 
 namespace WireguardGui.Infrastructure.System;
 
-public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISystemCapabilityProbe
+public class SystemCapabilityProbe(IProcessRunner processRunner) : ISystemCapabilityProbe
 {
     public Task<BackendCapability> ProbeNativeAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(ProbeNative());
@@ -11,11 +11,17 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
     public async Task<BackendCapability> ProbeNmcliAsync(CancellationToken cancellationToken = default) =>
         await ProbeNmcliAsyncCore(cancellationToken).ConfigureAwait(false);
 
+    public Task<BackendCapability> ProbeAmneziaWgAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(ProbeAmneziaWg());
+
     public async Task<IReadOnlyList<BackendCapability>> ProbeAllAsync(CancellationToken cancellationToken = default)
     {
         var nmcli = await ProbeNmcliAsyncCore(cancellationToken).ConfigureAwait(false);
-        return [ProbeNative(), nmcli];
+        return [ProbeNative(), nmcli, ProbeAmneziaWg()];
     }
+
+    protected virtual bool IsKernelModulePresent(string moduleName) =>
+        Directory.Exists(Path.Combine("/sys/module", moduleName));
 
     private BackendCapability ProbeNative()
     {
@@ -25,7 +31,7 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
             missing.Add("wg");
         if (!processRunner.IsCommandAvailable("wg-quick"))
             missing.Add("wg-quick");
-        if (!IsWireGuardModuleAvailable())
+        if (!IsKernelModulePresent("wireguard"))
             missing.Add("wireguard kernel module");
 
         return new BackendCapability(
@@ -34,6 +40,25 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
             missing,
             "sudo dnf install wireguard-tools",
             "sudo apt install wireguard");
+    }
+
+    private BackendCapability ProbeAmneziaWg()
+    {
+        var missing = new List<string>();
+
+        if (!processRunner.IsCommandAvailable("awg"))
+            missing.Add("awg");
+        if (!processRunner.IsCommandAvailable("awg-quick"))
+            missing.Add("awg-quick");
+        if (!IsAmneziaWgTransportAvailable())
+            missing.Add("amneziawg kernel module or amneziawg-go");
+
+        return new BackendCapability(
+            BackendKind.AmneziaWg,
+            missing.Count == 0,
+            missing,
+            "sudo dnf copr enable amneziavpn/amneziawg && sudo dnf install amneziawg-tools amneziawg-dkms",
+            "sudo add-apt-repository ppa:amnezia/ppa && sudo apt install amneziawg amneziawg-tools");
     }
 
     private async Task<BackendCapability> ProbeNmcliAsyncCore(CancellationToken cancellationToken)
@@ -53,8 +78,8 @@ public sealed class SystemCapabilityProbe(IProcessRunner processRunner) : ISyste
             "sudo apt install network-manager");
     }
 
-    private static bool IsWireGuardModuleAvailable() =>
-        Directory.Exists("/sys/module/wireguard");
+    private bool IsAmneziaWgTransportAvailable() =>
+        IsKernelModulePresent("amneziawg") || processRunner.IsCommandAvailable("amneziawg-go");
 
     public SplitRoutingToolingCapability ProbeSplitRoutingTooling()
     {

@@ -195,6 +195,13 @@ public sealed partial class WireGuardConfigParser : IWireGuardConfigParser
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .OrderBy(static ip => ip, StringComparer.Ordinal));
 
+    public bool IsAmneziaWg(string configContent) => AmneziaWgKeyPattern().IsMatch(configContent);
+
+    [GeneratedRegex(
+        @"^\s*(Jc|Jmin|Jmax|S[1-4]|H[1-4]|I[1-5]|HeaderProtectionKey|ContentPaddingAddition)\s*=",
+        RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex AmneziaWgKeyPattern();
+
     [GeneratedRegex(@"AllowedIPs\s*=\s*(.+)", RegexOptions.IgnoreCase)]
     private static partial Regex AllowedIpsPattern();
 

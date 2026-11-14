@@ -6,6 +6,12 @@ public interface IPolicyRoutingSetup
 {
     bool IsAvailable { get; }
 
+    /// <summary>
+    /// True, когда split DNS для профиля снят из-за нерабочего туннеля:
+    /// фоновый refresh должен повторить попытку, даже если набор маршрутов статичен.
+    /// </summary>
+    bool IsSplitDnsDegraded(string profileId);
+
     Task<PolicyRoutingApplyResult> ApplyAsync(
         VpnProfile profile,
         IReadOnlyList<string> routes,

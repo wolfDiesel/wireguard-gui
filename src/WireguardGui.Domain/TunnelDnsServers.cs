@@ -51,6 +51,25 @@ public static class TunnelDnsServers
             : Default;
     }
 
+    public static IReadOnlyList<string> ParseList(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return [];
+
+        var servers = new List<string>();
+        foreach (var value in text.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!IPAddress.TryParse(value, out var ip) || ip.AddressFamily != AddressFamily.InterNetwork)
+                continue;
+
+            var formatted = ip.ToString();
+            if (!servers.Contains(formatted, StringComparer.OrdinalIgnoreCase))
+                servers.Add(formatted);
+        }
+
+        return servers;
+    }
+
     public static bool IsTunnelLocal(string server)
     {
         if (!IPAddress.TryParse(server, out var ip) || ip.AddressFamily != AddressFamily.InterNetwork)

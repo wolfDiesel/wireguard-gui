@@ -54,6 +54,58 @@ public class SystemCapabilityProbeTests
         Assert.Empty(tooling.FedoraInstallHint);
     }
 
+    [Fact]
+    public async Task ProbeAmneziaWg_Available_WithKernelModule()
+    {
+        var probe = new ProbeWithModules(new FakeProcessRunner(["awg", "awg-quick"]), "amneziawg");
+        var awg = await probe.ProbeAmneziaWgAsync();
+
+        Assert.True(awg.IsAvailable);
+        Assert.Empty(awg.MissingComponents);
+    }
+
+    [Fact]
+    public async Task ProbeAmneziaWg_Available_WithUserspaceTransport()
+    {
+        var probe = new ProbeWithModules(new FakeProcessRunner(["awg", "awg-quick", "amneziawg-go"]));
+        var awg = await probe.ProbeAmneziaWgAsync();
+
+        Assert.True(awg.IsAvailable);
+    }
+
+    [Fact]
+    public async Task ProbeAmneziaWg_Unavailable_WithoutTools()
+    {
+        var probe = new ProbeWithModules(new FakeProcessRunner(["amneziawg-go"]));
+        var awg = await probe.ProbeAmneziaWgAsync();
+
+        Assert.False(awg.IsAvailable);
+        Assert.Contains("awg", awg.MissingComponents);
+        Assert.Contains("awg-quick", awg.MissingComponents);
+        Assert.Contains("amneziawg", awg.FedoraInstallHint, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("amneziawg", awg.DebianInstallHint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProbeAmneziaWg_Unavailable_WithoutTransport()
+    {
+        var probe = new ProbeWithModules(new FakeProcessRunner(["awg", "awg-quick"]));
+        var awg = await probe.ProbeAmneziaWgAsync();
+
+        Assert.False(awg.IsAvailable);
+        Assert.Contains("amneziawg kernel module or amneziawg-go", awg.MissingComponents);
+    }
+
+    [Fact]
+    public async Task ProbeAll_ReturnsAllThreeBackends()
+    {
+        var probe = new ProbeWithModules(new FakeProcessRunner(["nmcli"]));
+        var all = await probe.ProbeAllAsync();
+
+        Assert.Equal(3, all.Count);
+        Assert.Contains(all, static capability => capability.Backend == BackendKind.AmneziaWg);
+    }
+
     private sealed class FakeProcessRunner(IReadOnlyList<string> available) : IProcessRunner
     {
         public bool IsCommandAvailable(string command) => available.Contains(command);
@@ -68,5 +120,17 @@ public class SystemCapabilityProbeTests
             Task.FromResult(new ProcessResult(0, string.Empty, string.Empty));
 
         public bool HasActivePrivilegedSession { get; set; }
+    }
+
+    private sealed class ProbeWithModules : SystemCapabilityProbe
+    {
+        private readonly HashSet<string> _modules;
+
+        public ProbeWithModules(IProcessRunner runner, params string[] modules)
+            : base(runner) =>
+            _modules = [.. modules];
+
+        protected override bool IsKernelModulePresent(string moduleName) =>
+            _modules.Contains(moduleName);
     }
 }

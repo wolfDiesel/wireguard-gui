@@ -262,10 +262,11 @@ public class PolicyRoutingSetupTests
             runner,
             store,
             new WireGuardConfigParser(),
+            new WireGuardConfigRepository(store, new WireGuardConfigParser()),
             dnsProxy,
             new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance),
             new NftSetManager(runner),
-            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance),
+            new TunnelDnsManager(runner, store, new WireGuardConfigParser(), NullLogger<TunnelDnsManager>.Instance, new TunnelHealthProbe(runner)),
             new EndpointRouteGuard(runner, store, new WireGuardConfigParser(), NullLogger<EndpointRouteGuard>.Instance),
             NullLogger<PolicyRoutingSetup>.Instance);
 

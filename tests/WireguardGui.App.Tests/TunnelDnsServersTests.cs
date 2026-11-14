@@ -50,4 +50,28 @@ public class TunnelDnsServersTests
         Assert.Equal("8.8.8.8", TunnelDnsServers.ResolveOrDefault(""));
         Assert.Equal("1.1.1.1", TunnelDnsServers.ResolveOrDefault("1.1.1.1"));
     }
+
+    [Fact]
+    public void ParseList_Empty_ReturnsEmptyList()
+    {
+        Assert.Empty(TunnelDnsServers.ParseList(null));
+        Assert.Empty(TunnelDnsServers.ParseList(""));
+        Assert.Empty(TunnelDnsServers.ParseList("   "));
+    }
+
+    [Fact]
+    public void ParseList_Multiple_DeduplicatesInOrder()
+    {
+        Assert.Equal(
+            ["10.8.0.1", "1.1.1.1"],
+            TunnelDnsServers.ParseList("10.8.0.1, 1.1.1.1;10.8.0.1").ToArray());
+    }
+
+    [Fact]
+    public void ParseList_SkipsInvalidAndIpv6()
+    {
+        Assert.Equal(
+            ["8.8.8.8"],
+            TunnelDnsServers.ParseList("not-an-ip, 8.8.8.8, 2606:4700::1111").ToArray());
+    }
 }

@@ -1,6 +1,6 @@
 # ADR-0003 — Два бэкенда WireGuard за одним портом
 
-**Статус:** accepted
+**Статус:** superseded by ADR-0013
 **Источник:** `skills/wireguardgui-wireguard/`, `skills/wireguardgui-architecture/reference.md`
 **Связано:** ADR-0001, ADR-0004
 

@@ -32,8 +32,14 @@ public static class DependencyInjection
         services.AddSingleton<ISplitRouteBuilder, SplitRouteBuilder>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<ISystemCapabilityProbe, SystemCapabilityProbe>();
+        services.AddSingleton<IDistroProbe>(sp => new OsReleaseDistroProbe(
+            sp.GetRequiredService<IProcessRunner>()));
+        services.AddSingleton<IBackendInstaller, AmneziaWgInstaller>();
+        services.AddSingleton<IBackendVersionProbe>(sp => new AmneziaWgVersionProbe(
+            sp.GetRequiredService<IProcessRunner>()));
         services.AddSingleton<IProfileStore, JsonProfileStore>();
         services.AddSingleton<IProfileImporter, ProfileImporter>();
+        services.AddSingleton<IConfigKindProbe, ConfigKindProbe>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IWireGuardConfigValidator, WireGuardConfigValidator>();
         services.AddSingleton<IWireGuardConfigParser, WireGuardConfigParser>();
@@ -43,12 +49,14 @@ public static class DependencyInjection
         services.AddSingleton<ISystemResumeWatcher, SystemResumeWatcher>();
         services.AddSingleton<IpRuleManager>();
         services.AddSingleton<NftSetManager>();
+        services.AddSingleton<TunnelHealthProbe>();
         services.AddSingleton<TunnelDnsManager>();
         services.AddSingleton<EndpointRouteGuard>();
         services.AddSingleton<IPolicyRoutingSetup, PolicyRoutingSetup>();
         services.AddSingleton<IResolvedDnsRouteMonitor, ResolvedDnsRouteMonitor>();
         services.AddSingleton<ISplitRoutingConfigUpdater, SplitRoutingConfigUpdater>();
         services.AddSingleton<NativeWireGuardBackend>();
+        services.AddSingleton<AmneziaWgBackend>();
         services.AddSingleton<NmcliWireGuardBackend>();
         services.AddSingleton<IWireGuardBackendFactory, WireGuardBackendFactory>();
         return services;

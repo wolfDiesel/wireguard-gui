@@ -20,6 +20,10 @@
           <TextBlock Text="{Binding NmcliInstallFedora}" Classes="accent-text" />
           <TextBlock Classes="field-label" Text="{Binding SetupNmcliDebian}" />
           <TextBlock Text="{Binding NmcliInstallDebian}" Classes="accent-text" />
+          <TextBlock Classes="field-label" Text="{Binding SetupAmneziaWgFedora}" />
+          <TextBlock Text="{Binding AmneziaWgInstallFedora}" Classes="accent-text" />
+          <TextBlock Classes="field-label" Text="{Binding SetupAmneziaWgDebian}" />
+          <TextBlock Text="{Binding AmneziaWgInstallDebian}" Classes="accent-text" />
         </StackPanel>
       </Border>
     </StackPanel>

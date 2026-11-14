@@ -24,9 +24,10 @@ internal sealed class TelegramSplitRouteSource(
             return routes;
 
         dnsResolver.EnsureDigAvailable();
+        var upstream = TunnelDnsServers.ParseList(settings.TunnelDns);
         foreach (var domain in SplitRoutingConstants.TelegramResolveDomains)
         {
-            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, cancellationToken).ConfigureAwait(false);
+            var ipv6 = await dnsResolver.ResolveIpv6Async(domain, upstream, cancellationToken).ConfigureAwait(false);
             routes.AddRange(ipv6.Select(ip => $"{ip}/128"));
         }
 

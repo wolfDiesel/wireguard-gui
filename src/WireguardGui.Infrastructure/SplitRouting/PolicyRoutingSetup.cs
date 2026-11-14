@@ -9,6 +9,7 @@ public sealed class PolicyRoutingSetup(
     IProcessRunner processRunner,
     IProfileStore profileStore,
     IWireGuardConfigParser configParser,
+    IWireGuardConfigRepository configRepository,
     IDomainRouteDnsProxy dnsProxy,
     IpRuleManager ipRuleManager,
     NftSetManager nftSetManager,
@@ -20,10 +21,12 @@ public sealed class PolicyRoutingSetup(
     private readonly ConcurrentDictionary<string, string> _interfaces = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, HashSet<string>> _bulkRoutes =
         new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _installedHosts =
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _installedHosts =
         new(StringComparer.Ordinal);
 
     public bool IsAvailable => processRunner.IsCommandAvailable("ip");
+
+    public bool IsSplitDnsDegraded(string profileId) => tunnelDnsManager.IsSplitDnsDegraded(profileId);
 
     public async Task PrepareConnectionAsync(VpnProfile profile, CancellationToken cancellationToken = default)
     {
@@ -62,11 +65,11 @@ public sealed class PolicyRoutingSetup(
                     cancellationToken)
                 .ConfigureAwait(false);
             await endpointRouteGuard.EnsureEndpointRouteAsync(profile, cancellationToken).ConfigureAwait(false);
-            await tunnelDnsManager.EnsureTunnelDnsAsync(profile, iface, _installedHosts, cancellationToken)
-                .ConfigureAwait(false);
             _syncedRoutes[profile.Id] = PolicyRoutingNaming.NormalizeRoutesKey(routes);
             _interfaces[profile.Id] = iface;
             ReplaceBulkAndHostState(profile.Id, routes);
+            await tunnelDnsManager.EnsureTunnelDnsAsync(profile, iface, _installedHosts, cancellationToken)
+                .ConfigureAwait(false);
             logger.LogInformation(
                 "Policy routing applied for {Profile} on {Interface} ({Count} routes)",
                 profile.Name,
@@ -107,6 +110,7 @@ public sealed class PolicyRoutingSetup(
                     .ConfigureAwait(false);
                 await tunnelDnsManager.EnsureTunnelDnsAsync(profile, iface, _installedHosts, cancellationToken)
                     .ConfigureAwait(false);
+                await PruneStaleRulesAsync(profile, routes, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation(
                     "Policy routing {Profile}: routes unchanged ({Count}), refreshed table baseline and DNS",
                     profile.Name,
@@ -129,6 +133,7 @@ public sealed class PolicyRoutingSetup(
             _syncedRoutes[profile.Id] = key;
             _interfaces[profile.Id] = iface;
             MergeBulkAndHostState(profile.Id, routes);
+            await PruneStaleRulesAsync(profile, routes, cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
                 "Policy routing synced for {Profile} ({Count} routes, force={Force})",
                 profile.Name,
@@ -184,8 +189,50 @@ public sealed class PolicyRoutingSetup(
             profile,
             hostCidrs,
             _installedHosts,
+            _bulkRoutes,
             ResolveInterfaceForHostsAsync,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<int> PruneStaleRulesAsync(
+        VpnProfile profile,
+        IReadOnlyList<string> routes,
+        CancellationToken cancellationToken)
+    {
+        var keep = new HashSet<string>(routes, StringComparer.Ordinal);
+        if (_installedHosts.TryGetValue(profile.Id, out var installed))
+        {
+            foreach (var host in installed.Keys)
+                keep.Add(host);
+        }
+
+        foreach (var server in await ResolveTunnelDnsServersAsync(profile, cancellationToken).ConfigureAwait(false))
+            keep.Add(server + "/32");
+
+        return await ipRuleManager.PruneDestinationRulesAsync(profile, keep, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<string>> ResolveTunnelDnsServersAsync(
+        VpnProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var servers = new List<string>(TunnelDnsServers.ParseList(profile.SplitRouting.TunnelDns));
+        try
+        {
+            var content = await configRepository.ReadAsync(profile, cancellationToken).ConfigureAwait(false);
+            foreach (var server in configParser.ResolveTunnelDnsServers(content))
+            {
+                if (!servers.Contains(server, StringComparer.OrdinalIgnoreCase))
+                    servers.Add(server);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Policy routing {Profile}: tunnel DNS servers are unreadable from the config", profile.Name);
+        }
+
+        return servers;
     }
 
     private async Task<string?> ResolveInterfaceForHostsAsync(string profileId, CancellationToken cancellationToken)
@@ -206,12 +253,12 @@ public sealed class PolicyRoutingSetup(
     private void ReplaceBulkAndHostState(string profileId, IReadOnlyList<string> routes)
     {
         _bulkRoutes[profileId] = PolicyRoutingCommands.NormalizeRouteSet(routes);
-        var installed = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+        var installed = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
         foreach (var route in routes)
         {
             var host = PolicyRoutingCommands.NormalizeHostCidr(route);
             if (host is not null)
-                installed[host] = 0;
+                installed[host] = Environment.TickCount64;
         }
 
         _installedHosts[profileId] = installed;
@@ -222,12 +269,12 @@ public sealed class PolicyRoutingSetup(
         _bulkRoutes[profileId] = PolicyRoutingCommands.NormalizeRouteSet(routes);
         var installed = _installedHosts.GetOrAdd(
             profileId,
-            _ => new ConcurrentDictionary<string, byte>(StringComparer.Ordinal));
+            _ => new ConcurrentDictionary<string, long>(StringComparer.Ordinal));
         foreach (var route in routes)
         {
             var host = PolicyRoutingCommands.NormalizeHostCidr(route);
             if (host is not null)
-                installed[host] = 0;
+                installed[host] = Environment.TickCount64;
         }
     }
 

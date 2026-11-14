@@ -21,6 +21,7 @@ internal sealed class CustomDomainsSplitRouteSource(
     {
         dnsResolver.EnsureDigAvailable();
 
+        var upstream = TunnelDnsServers.ParseList(settings.TunnelDns);
         var routes = new List<string>();
         var domains = settings.CustomDomains
             .Select(d => d.Trim())
@@ -42,13 +43,21 @@ internal sealed class CustomDomainsSplitRouteSource(
                 progress?.Report(new SplitRoutingProgress("Progress_Resolve_Domain", domain));
                 logger.LogInformation("Resolving domain {Domain}…", domain);
 
-                var ips = await dnsResolver.ResolveIpv4Async(domain, cancellationToken);
+                var ips = await dnsResolver.ResolveIpv4Async(domain, upstream, cancellationToken);
                 foreach (var ip in ips)
                     routes.Add($"{ip}/32");
 
-                var ipv6 = await dnsResolver.ResolveIpv6Async(domain, cancellationToken);
+                var ipv6 = await dnsResolver.ResolveIpv6Async(domain, upstream, cancellationToken);
                 foreach (var ip in ipv6)
                     routes.Add($"{ip}/128");
+
+                if (ips.Count + ipv6.Count == 0)
+                {
+                    logger.LogWarning(
+                        "Domain {Domain}: no addresses from tunnel DNS ({Servers}) or the system resolver",
+                        domain,
+                        upstream.Count > 0 ? string.Join(", ", upstream) : "not configured");
+                }
 
                 logger.LogInformation("Domain {Domain}: {Count} addresses", domain, ips.Count + ipv6.Count);
             }

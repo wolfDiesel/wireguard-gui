@@ -13,7 +13,7 @@ ADR фиксируют то, что уже реализовано в коде и
 |----|---------|----------|
 | [ADR-0001](0001-layered-architecture.md) | Слоистая архитектура с однонаправленными зависимостями | I1–I5 |
 | [ADR-0002](0002-platform-and-ui-stack.md) | .NET 8 + Avalonia, Linux-only, свой MVVM | skills/avalonia-ui |
-| [ADR-0003](0003-two-wireguard-backends.md) | Два бэкенда WireGuard за одним портом | skills/wireguard |
+| [ADR-0003](0003-two-wireguard-backends.md) | Два бэкенда WireGuard за одним портом | superseded by ADR-0013 |
 | [ADR-0004](0004-privileged-session.md) | Долгоживущая pkexec-сессия и единый `IProcessRunner` | I6 |
 | [ADR-0005](0005-policy-split-routing.md) | Split routing через policy routing (`Table=off` + nft + ip rule) | I10, skills/split-routing |
 | [ADR-0006](0006-route-source-priority.md) | Источники маршрутов с приоритетом и общим лимитом | I9 |
@@ -23,3 +23,6 @@ ADR фиксируют то, что уже реализовано в коде и
 | [ADR-0010](0010-operation-results.md) | Результаты операций — DTO с кодом ошибки | Q2, `ConnectionOutcomeResolver` |
 | [ADR-0011](0011-plan-driven-process.md) | Процесс: plan-driven со спеками, скиллами и DoD | P1–P7, R1–R3 |
 | [ADR-0012](0012-desktop-layer.md) | Системная интеграция вынесена в проект Desktop | I5, Stage 6 |
+| [ADR-0013](0013-amneziawg-backend.md) | AmneziaWG — третий quick-based бэкенд | Stage 18 |
+| [ADR-0014](0014-ui-backend-install.md) | Установка AWG-бэкенда из приложения через pkexec | I6, Stage 19 |
+| [ADR-0015](0015-fedora-source-install.md) | Fedora: сборка AWG из исходников, COPR — только RHEL/CentOS | ADR-0014, Stage 19 |

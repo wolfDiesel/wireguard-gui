@@ -30,6 +30,7 @@ public interface ISystemCapabilityProbe
 {
     Task<BackendCapability> ProbeNativeAsync(CancellationToken cancellationToken = default);
     Task<BackendCapability> ProbeNmcliAsync(CancellationToken cancellationToken = default);
+    Task<BackendCapability> ProbeAmneziaWgAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BackendCapability>> ProbeAllAsync(CancellationToken cancellationToken = default);
     SplitRoutingToolingCapability ProbeSplitRoutingTooling();
 }

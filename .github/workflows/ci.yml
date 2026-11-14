@@ -1,9 +1,17 @@
-name: Release AppImage
+name: CI
+
+# GitHub — зеркало GitLab (ADR 0006 в my-ops): тесты здесь второй контур, но
+# запускаются из тех же файлов, что и job test в .gitlab-ci.yml. AppImage пока
+# собирается только здесь (release-appimage.yml → ci.yml): по тегу v*, на
+# событие release и вручную.
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  pull_request:
   release:
     types: [published]
   workflow_dispatch:
@@ -12,7 +20,35 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run tests
+        run: |
+          set -eu
+          for project in tests/*/*.Tests.csproj; do
+            name=$(basename "$project" .csproj)
+            dotnet test "$project" -c Release \
+              --logger "junit;LogFilePath=${GITHUB_WORKSPACE}/artifacts/test-results/$name.xml"
+          done
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results/*.xml
+          if-no-files-found: warn
+
   appimage:
+    needs: test
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
