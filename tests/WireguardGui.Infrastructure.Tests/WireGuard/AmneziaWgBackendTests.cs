@@ -97,10 +97,37 @@ public class AmneziaWgBackendTests
     }
 
     [Fact]
-    public async Task GetConnectionState_ReturnsUnknown_OnShowFailure()
+    public async Task GetConnectionState_FallsBackToLinkProbe_WhenShowFails()
     {
         var (backend, runner, _) = Create();
-        runner.CommandResults["awg show"] = new ProcessResult(1, string.Empty, "Operation not permitted");
+        runner.CommandResults["awg show"] = new ProcessResult(1, string.Empty, "Unable to access interface: Operation not permitted");
+
+        var state = await backend.GetConnectionStateAsync(CreateProfile("awg-office"));
+
+        Assert.Equal(ConnectionState.Connected, state);
+        Assert.Contains("ip link show dev awg-office", runner.CommandLines);
+    }
+
+    [Fact]
+    public async Task GetConnectionState_ReturnsDisconnected_WhenLinkIsMissing()
+    {
+        var (backend, runner, _) = Create();
+        runner.CommandResults["awg show"] = new ProcessResult(1, string.Empty, "Permission denied");
+        runner.CommandResults["ip link show dev awg-office"] =
+            new ProcessResult(1, string.Empty, "Device \"awg-office\" does not exist.");
+
+        var state = await backend.GetConnectionStateAsync(CreateProfile("awg-office"));
+
+        Assert.Equal(ConnectionState.Disconnected, state);
+    }
+
+    [Fact]
+    public async Task GetConnectionState_ReturnsUnknown_WhenShowAndLinkProbeFail()
+    {
+        var (backend, runner, _) = Create();
+        runner.CommandResults["awg show"] = new ProcessResult(1, string.Empty, "Permission denied");
+        runner.CommandResults["ip link show dev awg-office"] =
+            new ProcessResult(1, string.Empty, "RTNETLINK answers: Operation not permitted");
 
         var state = await backend.GetConnectionStateAsync(CreateProfile("awg-office"));
 

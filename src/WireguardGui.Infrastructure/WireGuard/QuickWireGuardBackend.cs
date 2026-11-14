@@ -43,13 +43,14 @@ public abstract class QuickWireGuardBackend(
         CancellationToken cancellationToken = default)
     {
         // show требует CAP_NET_ADMIN; если pkexec-сессия уже авторизована
-        // (пользователь подключал/отключал интерфейс), читаем статус через неё —
-        // иначе деградируем до прежнего поведения (без прав, статус Unknown).
+        // (пользователь подключал/отключал интерфейс), читаем статус через неё.
+        // Без прав show может ответить Permission denied — тогда статус
+        // определяется по наличию интерфейса (ip link show, без root).
         var result = processRunner.HasActivePrivilegedSession
             ? await processRunner.RunPrivilegedAsync(ShowCommand, ["show"], cancellationToken)
             : await processRunner.RunAsync(ShowCommand, ["show"], cancellationToken);
         if (!result.IsSuccess)
-            return ConnectionState.Unknown;
+            return await ResolveStateFromLinkAsync(profile, cancellationToken).ConfigureAwait(false);
 
         foreach (var line in result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -62,6 +63,22 @@ public abstract class QuickWireGuardBackend(
         }
 
         return ConnectionState.Disconnected;
+    }
+
+    private async Task<ConnectionState> ResolveStateFromLinkAsync(
+        VpnProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var link = await processRunner.RunAsync(
+            "ip",
+            ["link", "show", "dev", profile.ConnectionName],
+            cancellationToken).ConfigureAwait(false);
+        if (link.IsSuccess)
+            return ConnectionState.Connected;
+
+        return IsMissingInterfaceError(link.StandardError)
+            ? ConnectionState.Disconnected
+            : ConnectionState.Unknown;
     }
 
     public async Task ReimportFromConfigAsync(

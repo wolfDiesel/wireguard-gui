@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.1] - 2026-11-14
+
+### Fixed
+
+- **AmneziaWG profile showed as inactive while the tunnel was up.** `awg show` (and `wg show`) need
+  CAP_NET_ADMIN: in a fresh process without an active pkexec session the status probe failed with
+  "Permission denied" and polling every few seconds kept the profile at `Unknown`, even though YouTube,
+  Telegram and the rest of the traffic went through the tunnel. `QuickWireGuardBackend` now falls back
+  to `ip link show dev <ConnectionName>` (no root required) when the show command fails: interface
+  present → Connected, `does not exist`/`Cannot find device` → Disconnected, other errors → Unknown.
+  The same fallback covers native `wg-quick` profiles.
+
 ## [1.5.0] - 2026-11-14
 
 ### Added
