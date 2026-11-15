@@ -92,12 +92,6 @@ dotnet test
 
 Three test projects (`tests/*/*.Tests.csproj`) run in both CI contours — the `test` job in GitLab CI and `test` in GitHub Actions (`.github/workflows/ci.yml`) — and each publishes a JUnit report (`artifacts/test-results/*.xml`). The AppImage is built in GitHub Actions only.
 
-Красивый вывод с зелёными галочками (Spectre.Console, парсинг TRX):
-
-```bash
-./test.sh
-```
-
 ## Data directory
 
 Application data lives under `~/.local/share/wireguard-gui/`:

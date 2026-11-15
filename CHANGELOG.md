@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.3] - 2026-11-15
+
+### Fixed
+
+- **Russian paragraph left in the English README.** The `./test.sh` note (highlighted test output via
+  Spectre.Console, TRX parsing) was pasted into `README.md` in Russian by the 1.4.8 release; it now
+  lives in `README.ru.md`, and `README.md` is English throughout.
+
 ## [1.5.2] - 2026-11-15
 
 ### Fixed

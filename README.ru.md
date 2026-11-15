@@ -91,6 +91,12 @@ dotnet test
 
 Три тестовых проекта (`tests/*/*.Tests.csproj`) гоняют оба контура CI — job `test` в GitLab CI и `test` в GitHub Actions (`.github/workflows/ci.yml`); каждый пишет отчёт JUnit (`artifacts/test-results/*.xml`) и отдаёт его артефактом. AppImage собирается только в GitHub Actions.
 
+Красивый вывод с зелёными галочками (Spectre.Console, парсинг TRX):
+
+```bash
+./test.sh
+```
+
 ## Каталог данных
 
 Данные приложения: `~/.local/share/wireguard-gui/`:
