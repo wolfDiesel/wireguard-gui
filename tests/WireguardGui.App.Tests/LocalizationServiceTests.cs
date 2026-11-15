@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json;
 using WireguardGui.App.Avalonia.Localization;
 using WireguardGui.Domain;
 
@@ -46,6 +48,7 @@ public class LocalizationServiceTests
     [InlineData(UiLanguages.German)]
     [InlineData(UiLanguages.French)]
     [InlineData(UiLanguages.Spanish)]
+    [InlineData(UiLanguages.Chinese)]
     [InlineData(UiLanguages.Japanese)]
     public void AmneziaWg_Keys_Are_Localized(string language)
     {
@@ -95,5 +98,38 @@ public class LocalizationServiceTests
 
         foreach (var key in keys)
             Assert.NotEqual(key, localization.Get(key));
+    }
+
+    [Fact]
+    public void Every_Localization_Has_The_Same_Keys()
+    {
+        var assembly = typeof(LocalizationService).Assembly;
+        var reference = ReadKeys(assembly, UiLanguages.Default);
+        Assert.NotEmpty(reference);
+
+        foreach (var language in UiLanguages.All)
+        {
+            var keys = ReadKeys(assembly, language);
+
+            Assert.Equal(
+                reference.OrderBy(key => key, StringComparer.Ordinal),
+                keys.OrderBy(key => key, StringComparer.Ordinal));
+        }
+    }
+
+    private static string[] ReadKeys(Assembly assembly, string language)
+    {
+        var suffix = $".Localization.{language}.json";
+        var name = assembly.GetManifestResourceNames()
+            .FirstOrDefault(resource => resource.EndsWith(suffix, StringComparison.Ordinal));
+        Assert.NotNull(name);
+
+        using var stream = assembly.GetManifestResourceStream(name!);
+        Assert.NotNull(stream);
+
+        using var document = JsonDocument.Parse(stream!);
+        return document.RootElement.EnumerateObject()
+            .Select(property => property.Name)
+            .ToArray();
     }
 }

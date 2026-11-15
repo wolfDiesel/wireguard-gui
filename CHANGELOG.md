@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.2] - 2026-11-15
+
+### Fixed
+
+- **Chinese UI showed English text for AmneziaWG and the installer.** `zh.json` was frozen by the
+  localization rule and stayed 38 keys behind the other locales, so the **Settings → Amnesia** tab, the
+  install progress dialog, the manual-install dialog and the third backend in the import and setup views
+  fell back to English (the service merges `en.json` as a base, so a missing key was invisible). All 38
+  keys are translated, the key order matches `en.json`, and the localization rule (constitution Q2) now
+  covers all seven locales. The new test `Every_Localization_Has_The_Same_Keys` compares the key sets of
+  every embedded locale, so a gap fails `dotnet test` instead of shipping.
+
+### Changed
+
+- **`README.zh.md` documents AmneziaWG.** Third backend in the requirements and feature list, the
+  obfuscation keys that are preserved, install commands, the `amneziawg-go` userspace fallback, the
+  `nmcli` limitation for AWG profiles and the **Settings → Amnesia** install flow (Check / Install /
+  Manual install, supported distributions).
+
 ## [1.5.1] - 2026-11-14
 
 ### Fixed

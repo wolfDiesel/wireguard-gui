@@ -2,21 +2,22 @@
 
 [English](README.md) | [Русский](README.ru.md) | 中文
 
-适用于 **Linux** 的 WireGuard 桌面客户端，基于 **Avalonia** 界面。管理 VPN 配置文件，通过 **NetworkManager**（`nmcli`）或 **原生** `wg-quick` 连接，并可将分流路由写入 `.conf` 文件中的 `AllowedIPs`。
+适用于 **Linux** 的 WireGuard 桌面客户端，基于 **Avalonia** 界面。管理 VPN 配置文件，通过 **NetworkManager**（`nmcli`）、**原生** `wg-quick` 或 **AmneziaWG**（`awg-quick`）连接，并可将分流路由写入 `.conf` 文件中的 `AllowedIPs`。
 
 ## 系统要求
 
 - **Linux**，需 GTK 3（可选 Ayatana AppIndicator 以使用系统托盘）。
-- 主机上的 **WireGuard 后端**：
-  - **NetworkManager** — `nmcli`、`network-manager`、WireGuard 插件；或
-  - **原生** — `wg-quick`、`wireguard-tools`。
+- 主机上的 **隧道后端**，任选其一：
+  - **NetworkManager** — `nmcli`、`network-manager`、WireGuard 插件；
+  - **原生** — `wg-quick`、`wireguard-tools`；
+  - **AmneziaWG** — `awg-quick`、`amneziawg-tools`，以及内核模块 `amneziawg` 或 `amneziawg-go`。
 - 从源码构建需 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。
-- 使用 NetworkManager 或 `wg-quick` 时，需 `pkexec`（PolicyKit）执行特权操作。
+- 使用 NetworkManager、`wg-quick` 或 AmneziaWG 时，需 `pkexec`（PolicyKit）执行特权操作。
 
 ## 功能
 
 - **配置文件管理** — 导入 `.conf`、列出配置、连接、断开、删除。
-- **双后端** — 导入时可为每个配置选择 NetworkManager 或原生 `wg-quick`。
+- **三种后端** — NetworkManager、原生 `wg-quick` 或 AmneziaWG `awg-quick`，导入时为每个配置选择；后端会根据配置文件内容给出建议。
 - **实时连接状态** — 每隔数秒轮询更新配置状态与状态栏。
 - **分流路由（Split routing）** — 每个配置可选：
   - YouTube / Google（缓存或在线 IP 段），
@@ -31,6 +32,30 @@
 - **外观** — 深色 / 浅色 / 跟随系统主题，多种强调色。
 - **本地化** — 英语（默认）、俄语、法语、德语、西班牙语、中文、日语；语言保存在 `~/.local/share/wireguard-gui/settings.json`。
 - **AppImage** — CI 构建 x86_64 镜像，附于 [GitHub Releases](https://github.com/wolfDiesel/wireguard-gui/releases)。
+
+## AmneziaWG
+
+AmneziaWG 是带流量混淆的 WireGuard 分支。Amnezia 客户端把这类隧道导出为普通 `.conf` 文件：导入该文件并选择 **AmneziaWG** 后端——混淆参数（`Jc`、`Jmin`、`Jmax`、`S1`–`S4`、`H1`–`H4`、`I1`–`I5`，……）原样保留，只修改 `AllowedIPs`/`Table`/`DNS`。
+
+请先安装工具（包名以 Amnezia 官方说明为准，并针对你的发行版核对）：
+
+```bash
+# Fedora
+sudo dnf copr enable amneziavpn/amneziawg
+sudo dnf install amneziawg-tools amneziawg-dkms
+
+# Debian/Ubuntu
+sudo add-apt-repository ppa:amnezia/ppa
+sudo apt install amneziawg amneziawg-tools
+```
+
+如果内核模块无法针对你的内核编译，请改装 `amneziawg-go`：`awg-quick` 会自动回退到用户空间实现。NetworkManager 无法管理 AWG 隧道（它只认识 `type wireguard`），因此这类配置不提供 `nmcli`。
+
+### 从应用安装
+
+打开 **设置 → Amnesia**。如果后端已安装，该选项卡会显示工具版本和传输方式（内核模块或 `amneziawg-go`）；否则可按 **检查** 重新探测、按 **安装** 进行安装，或按 **手动安装** 获取可直接复制的命令。
+
+**安装** 支持 Debian/Ubuntu（PPA `amnezia/ppa`）、RHEL/CentOS（COPR `amneziavpn/amneziawg`）、Fedora（从源码编译 `amneziawg-tools` 和 `amneziawg-go`——COPR 项目没有 Fedora chroot）以及 ALT Linux（发行版仓库）。安装时会请求管理员权限（polkit），随后显示每个步骤及其输出；窗口在完成前不会关闭。未知发行版只提供手动安装说明。
 
 ## 从源码运行
 
