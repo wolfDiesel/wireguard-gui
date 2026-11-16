@@ -80,11 +80,11 @@ public class IpRuleManagerTests
         {
             RuleListOutput =
                 $"100:\tfrom all to 45.129.128.77 lookup {table}\n" +
-                $"100:\tfrom all to 1.1.1.1/32 lookup {table}\n" +
-                $"100:\tfrom all to 8.8.8.8/32 lookup {table}\n" +
-                "100:\tfrom all to 9.9.9.9/32 lookup 250\n" +
+                $"100:\tfrom all to 1.1.1.1 lookup {table}\n" +
+                $"100:\tfrom all to 8.8.8.8 lookup {table}\n" +
+                "100:\tfrom all to 9.9.9.9 lookup 250\n" +
                 "32766:\tfrom all lookup main\n",
-            Ipv6RuleListOutput = $"100:\tfrom all to 2001:db8::1/128 lookup {table}\n",
+            Ipv6RuleListOutput = $"100:\tfrom all to 2001:db8::1 lookup {table}\n",
         };
         var manager = new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance);
 
@@ -99,13 +99,16 @@ public class IpRuleManagerTests
             c => MatchesIp(c, "rule", "del", "pref", "100", "to", "45.129.128.77", "lookup", table.ToString()));
         Assert.Contains(
             runner.PrivilegedCommands,
-            c => MatchesIp(c, "-6", "rule", "del", "pref", "100", "to", "2001:db8::1/128", "lookup", table.ToString()));
+            c => MatchesIp(c, "-6", "rule", "del", "pref", "100", "to", "2001:db8::1", "lookup", table.ToString()));
         Assert.DoesNotContain(
             runner.PrivilegedCommands,
-            c => c.FileName == "ip" && c.Arguments.Contains("1.1.1.1/32"));
+            c => c.FileName == "ip" && c.Arguments.Contains("1.1.1.1"));
         Assert.DoesNotContain(
             runner.PrivilegedCommands,
-            c => c.FileName == "ip" && c.Arguments.Contains("9.9.9.9/32"));
+            c => c.FileName == "ip" && c.Arguments.Contains("8.8.8.8"));
+        Assert.DoesNotContain(
+            runner.PrivilegedCommands,
+            c => c.FileName == "ip" && c.Arguments.Contains("9.9.9.9"));
     }
 
     [Fact]
@@ -115,11 +118,33 @@ public class IpRuleManagerTests
         var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
         var runner = new TrackingProcessRunner
         {
-            RuleListOutput = $"100:\tfrom all to 1.1.1.1/32 lookup {table}\n",
+            RuleListOutput = $"100:\tfrom all to 1.1.1.1 lookup {table}\n",
         };
         var manager = new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance);
 
         var pruned = await manager.PruneDestinationRulesAsync(profile, ["1.1.1.1/32"], CancellationToken.None);
+
+        Assert.Equal(0, pruned);
+        Assert.DoesNotContain(runner.PrivilegedCommands, c => c.FileName == "ip");
+    }
+
+    [Fact]
+    public async Task PruneDestinationRulesAsync_Ipv6HostAndPrefix_AreMatchedByKeepSet()
+    {
+        var profile = VpnProfile.Create("p1", BackendKind.Nmcli, "wg0");
+        var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
+        var runner = new TrackingProcessRunner
+        {
+            Ipv6RuleListOutput =
+                $"100:\tfrom all to 2001:db8::1 lookup {table}\n" +
+                $"100:\tfrom all to 2001:db8::/32 lookup {table}\n",
+        };
+        var manager = new IpRuleManager(runner, NullLogger<IpRuleManager>.Instance);
+
+        var pruned = await manager.PruneDestinationRulesAsync(
+            profile,
+            ["2001:db8::1/128", "2001:db8::/32"],
+            CancellationToken.None);
 
         Assert.Equal(0, pruned);
         Assert.DoesNotContain(runner.PrivilegedCommands, c => c.FileName == "ip");

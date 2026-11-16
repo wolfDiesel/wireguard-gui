@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.4] - 2026-11-16
+
+### Fixed
+
+- **Split routing deleted its own host routes right after installing them.** Twitch and custom-domain
+  sources emit addresses as `ip/32` (and IPv6 as `ip/128`), while `ip rule list` prints host rules
+  without the mask (`to 151.101.66.214 lookup 796`). The stale-rule cleanup compared the desired set
+  with the kernel output as plain strings, so every host rule looked stale and was removed in the same
+  sync that installed it: `pruned 115 stale destination rules` wiped Twitch and custom-domain routes,
+  and traffic kept going past the tunnel even with the checkbox enabled. The same literal comparison
+  also dropped the `/32` split-DNS server rules. Both sides are now normalized to the kernel form
+  before comparison — IPv4 `/32` and IPv6 `/128` are matched as hosts, real IPv6 prefixes such as
+  `2001:db8::/32` are preserved. Regression tests cover IPv4/IPv6 host and prefix forms.
+
 ## [1.5.3] - 2026-11-15
 
 ### Fixed

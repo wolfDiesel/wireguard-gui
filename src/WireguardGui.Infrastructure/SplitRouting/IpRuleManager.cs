@@ -200,7 +200,9 @@ public sealed class IpRuleManager(
         CancellationToken cancellationToken)
     {
         var table = PolicyRoutingNaming.RoutingTableId(profile.Id);
-        var keep = keepCidrs as HashSet<string> ?? new HashSet<string>(keepCidrs, StringComparer.Ordinal);
+        var keep = new HashSet<string>(
+            keepCidrs.Select(NormalizeRuleDestination),
+            StringComparer.Ordinal);
 
         var stale = new List<string>();
         stale.AddRange(await CollectStaleRulesAsync(["rule", "list"], table, keep, cancellationToken)
@@ -242,7 +244,7 @@ public sealed class IpRuleManager(
         {
             if (!TryParseManagedRule(line, table, out var cidr))
                 continue;
-            if (keep.Contains(cidr))
+            if (keep.Contains(NormalizeRuleDestination(cidr)))
                 continue;
 
             stale.Add(cidr);
@@ -282,6 +284,15 @@ public sealed class IpRuleManager(
 
         cidr = destination;
         return true;
+    }
+
+    internal static string NormalizeRuleDestination(string cidr)
+    {
+        var trimmed = cidr.Trim();
+        if (trimmed.Contains(':', StringComparison.Ordinal))
+            return trimmed.EndsWith("/128", StringComparison.Ordinal) ? trimmed[..^4] : trimmed;
+
+        return trimmed.EndsWith("/32", StringComparison.Ordinal) ? trimmed[..^3] : trimmed;
     }
 
     public async Task ClearRulesForTableAsync(int table, CancellationToken cancellationToken)
